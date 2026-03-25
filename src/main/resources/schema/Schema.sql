@@ -8,5 +8,6 @@ CREATE TABLE import_checkpoint
 CREATE TABLE company_entry
 (
     entry_id BIGSERIAL PRIMARY KEY,
-    entry jsonb NOT NULL
+    entry jsonb NOT NULL,
+    inserted_at TIMESTAMP NOT NULL DEFAULT now()
 );

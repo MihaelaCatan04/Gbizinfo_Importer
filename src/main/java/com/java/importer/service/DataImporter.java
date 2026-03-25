@@ -11,7 +11,11 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -28,6 +32,8 @@ public class DataImporter {
     private String apiToken;
     @Value("${app.importer.url}")
     private String url;
+    @Value("${local-path}")
+    private String localPath;
 
     public DataImporter(PrepMapper prepMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate) {
         this.prepMapper = prepMapper;
@@ -54,39 +60,98 @@ public class DataImporter {
         }
     }
 
-    private void processZipInputStream(ZipInputStream zip, LocalDate transactionDate) throws IOException {
-        ZipEntry entry;
-        while ((entry = zip.getNextEntry()) != null) {
-            String name = entry.getName();
+    public void importFromLocalFolder() throws Exception {
+        LocalDate transactionDate = LocalDate.now();
+        Path folder = validateLocalFolder();
 
-            if (entry.isDirectory() || !name.toLowerCase().endsWith(".json")) {
-                log.warn("Skipping non-JSON entry: {}", name);
-                zip.closeEntry();
-                continue;
-            }
+        List<Path> files = listJsonFiles(folder);
+        if (files.isEmpty()) {
+            log.warn("No .json files found in {}", folder);
+            return;
+        }
 
-            processEntry(zip, name, transactionDate);
-            zip.closeEntry();
+        for (Path file : files) {
+            processLocalFile(file, transactionDate);
         }
     }
 
-    private void processEntry(ZipInputStream zip, String name, LocalDate transactionDate) {
+    private void processLocalFile(Path file, LocalDate transactionDate) {
+        String name = file.getFileName().toString();
+
         try {
-            transactionTemplate.executeWithoutResult(status -> processOrSkip(zip, name, transactionDate));
+            transactionTemplate.executeWithoutResult(status -> {
+                if (checkAlreadyExists(name, transactionDate)) {
+                    return;
+                }
+                try (var inputStream = Files.newInputStream(file)) {
+                    dataMapper.copy(inputStream);
+                } catch (IOException e) {
+                    log.error("Exception ", e);
+                }
+                setCheckpoint(name, transactionDate);
+
+            });
         } catch (Exception e) {
             log.error("Failed on {}, rolling back", name, e);
         }
     }
 
-    private void processOrSkip(ZipInputStream zip, String name, LocalDate transactionDate) {
+    private Boolean checkAlreadyExists(String name, LocalDate transactionDate) {
         if (prepMapper.getEntryCount(name, transactionDate) > 0) {
             log.info("Entry {} already processed -> skipping.", name);
-            return;
+            return true;
         }
+        return false;
+    }
 
-        dataMapper.copy(zip);
+    private void setCheckpoint(String name, LocalDate transactionDate) {
         prepMapper.setCheckpoint(name, transactionDate);
         log.info("Committed {}", name);
+    }
+
+    private List<Path> listJsonFiles(Path folder) throws IOException {
+        try (var stream = Files.list(folder)) {
+            return stream.filter(path -> path.getFileName().toString().endsWith(".json")).sorted(Comparator.comparing(path -> path.getFileName().toString())).toList();
+        }
+    }
+
+    private Path validateLocalFolder() {
+        Path folder = Path.of(localPath);
+        if (!Files.isDirectory(folder)) {
+            throw new IllegalArgumentException("local-path is not a directory: " + folder);
+        }
+        return folder;
+    }
+
+    private void processZipInputStream(ZipInputStream zip, LocalDate transactionDate) throws IOException {
+        ZipEntry entry;
+        while ((entry = zip.getNextEntry()) != null) {
+            String name = entry.getName();
+            try {
+                if (entry.isDirectory() || !name.toLowerCase().endsWith(".json")) {
+                    log.warn("Skipping non-JSON entry: {}", name);
+                    continue;
+                }
+
+                processZipEntry(zip, name, transactionDate);
+            } finally {
+                zip.closeEntry();
+            }
+        }
+    }
+
+    private void processZipEntry(ZipInputStream zip, String name, LocalDate transactionDate) {
+        try {
+            transactionTemplate.executeWithoutResult(status -> {
+                if (checkAlreadyExists(name, transactionDate)) {
+                    return;
+                }
+                dataMapper.copy(zip);
+                setCheckpoint(name, transactionDate);
+            });
+        } catch (Exception e) {
+            log.error("Failed on {}, rolling back", name, e);
+        }
     }
 
     private HttpURLConnection openConnection() throws Exception {
