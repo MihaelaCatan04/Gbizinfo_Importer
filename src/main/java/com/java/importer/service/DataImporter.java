@@ -43,11 +43,7 @@ public class DataImporter {
 
     public void importDataRemote() throws Exception {
         LocalDate transactionDate = LocalDate.now();
-        prepMapper.clearDataTables(); // -> TODO delete this
         executeRemoteImport(transactionDate);
-        //TODO Before clear data, do export
-        //prepMapper.clearDataTables();
-
     }
 
     private void executeRemoteImport(LocalDate transactionDate) throws Exception {
