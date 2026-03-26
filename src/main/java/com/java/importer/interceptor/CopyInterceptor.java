@@ -88,7 +88,10 @@ public class CopyInterceptor implements Interceptor {
             }
 
             String json = OUTPUT_MAPPER.writeValueAsString(node);
+            String corporateNumber = node.path("corporate_number").asText("");
             writeCsvField(out, json);
+            out.write(',');
+            writeCsvField(out, corporateNumber);
             out.write('\n');
         }
     }
