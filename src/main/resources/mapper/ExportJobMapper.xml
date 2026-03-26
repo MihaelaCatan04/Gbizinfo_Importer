@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java.importer.mapper.ExportJobMapper">
+    <insert id="populate">
+        INSERT INTO export_job (run_id, corporate_number)
+        SELECT #{runId}, corporate_number
+        FROM company_entry
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <select id="claimBatch" resultType="String">
+        WITH claimed AS (
+            SELECT corporate_number
+            FROM export_job
+            WHERE run_id = #{runId}
+              AND status = 'pending'
+            LIMIT #{batchSize}
+                FOR UPDATE SKIP LOCKED
+        )
+        UPDATE export_job
+        SET status     = 'processing',
+            claimed_by = #{instanceId},
+            claimed_at = now()
+        FROM claimed
+        WHERE export_job.corporate_number = claimed.corporate_number
+          AND export_job.run_id = #{runId}
+        RETURNING export_job.corporate_number
+    </select>
+
+    <update id="markDone">
+        UPDATE export_job
+        SET status = 'done',
+            completed_at = now()
+        WHERE run_id = #{runId}
+          AND corporate_number = #{corporateNumber}
+    </update>
+
+    <update id="markFailed">
+        UPDATE export_job
+        SET status = 'failed'
+        WHERE run_id = #{runId}
+          AND corporate_number = #{corporateNumber}
+    </update>
+</mapper>
