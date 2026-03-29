@@ -6,12 +6,16 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Log4j2
 @Service
 public class ExportCoordinator {
-
+    private static final List<String> ENTITIES = List.of(
+            "patents", "classifications", "commendations", "certifications",
+            "finances", "subsidies", "procurements", "item-infos", "workplace-infos"
+    );
     private final ExportJobMapper exportJobMapper;
     private final ExportWorker exportWorker;
     private final WarehouseClient warehouseClient;
@@ -39,16 +43,9 @@ public class ExportCoordinator {
         log.info("Export run {} complete", runId);
     }
 
+
     private void completeEntities(WarehouseClient warehouseClient, String runId) {
-        warehouseClient.completeEntity(runId, "patents");
-        warehouseClient.completeEntity(runId, "classifications");
-        warehouseClient.completeEntity(runId, "commendations");
-        warehouseClient.completeEntity(runId, "certifications");
-        warehouseClient.completeEntity(runId, "finances");
-        warehouseClient.completeEntity(runId, "subsidies");
-        warehouseClient.completeEntity(runId, "procurements");
-        warehouseClient.completeEntity(runId, "item-infos");
-        warehouseClient.completeEntity(runId, "workplace-infos");
+        ENTITIES.forEach(entity -> warehouseClient.completeEntity(runId, entity));
         warehouseClient.completeRun(runId);
     }
 }

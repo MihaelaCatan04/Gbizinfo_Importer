@@ -1,11 +1,10 @@
 package com.java.importer.exporter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java.importer.client.WarehouseClient;
 import com.java.importer.mapper.CompanyEntryMapper;
 import com.java.importer.mapper.ExportJobMapper;
+import com.java.importer.model.export.EntityCollector;
 import com.java.importer.service.CompanyPreparer;
-import com.java.importer.util.DTOUtil;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,7 @@ public class ExportWorker {
     @Value("${exporter.batch.size}")
     int batchSize;
 
-    public ExportWorker(ExportJobMapper exportJobMapper, CompanyPreparer companyPreparer, WarehouseClient warehouseClient, CompanyEntryMapper companyEntryMapper, ObjectMapper objectMapper) {
+    public ExportWorker(ExportJobMapper exportJobMapper, CompanyPreparer companyPreparer, WarehouseClient warehouseClient, CompanyEntryMapper companyEntryMapper) {
         this.exportJobMapper = exportJobMapper;
         this.companyPreparer = companyPreparer;
         this.warehouseClient = warehouseClient;
@@ -48,21 +47,21 @@ public class ExportWorker {
     }
 
     private void processBatch(String runId, List<String> batch) {
-        DTOUtil dtoUtil = new DTOUtil();
+        EntityCollector entityCollector = new EntityCollector();
         List<String> successful = new ArrayList<>();
 
         for (String corporateNumber : batch) {
-            if (processCompany(runId, corporateNumber, dtoUtil)) {
+            if (processCompany(runId, corporateNumber, entityCollector)) {
                 successful.add(corporateNumber);
             }
         }
 
-        finalizeBatch(runId, dtoUtil, successful);
+        finalizeBatch(runId, entityCollector, successful);
     }
 
-    private boolean processCompany(String runId, String corporateNumber, DTOUtil dtoUtil) {
+    private boolean processCompany(String runId, String corporateNumber, EntityCollector entityCollector) {
         try {
-            mapInfo(runId, corporateNumber, dtoUtil);
+            mapInfo(runId, corporateNumber, entityCollector);
             return true;
         } catch (Exception e) {
             log.error("Failed to parse {}, marking failed", corporateNumber, e);
@@ -71,48 +70,18 @@ public class ExportWorker {
         }
     }
 
-    private void finalizeBatch(String runId, DTOUtil dtoUtil, List<String> successful) {
-        postInfo(dtoUtil);
+    private void finalizeBatch(String runId, EntityCollector entityCollector, List<String> successful) {
+        postInfo(entityCollector);
         successful.forEach(cn -> exportJobMapper.markDone(runId, cn));
     }
 
 
-    private void mapInfo(String runId, String corporateNumber, DTOUtil dtoUtil)
-            throws Exception {
+    private void mapInfo(String runId, String corporateNumber, EntityCollector entityCollector) throws Exception {
         String raw = companyEntryMapper.findRawByCorporateNumber(corporateNumber);
-        companyPreparer.mapInto(runId, corporateNumber, raw, dtoUtil);
+        companyPreparer.mapInto(runId, corporateNumber, raw, entityCollector);
     }
 
-    private void postInfo(DTOUtil dtoUtil) {
-        if (!dtoUtil.getCompanyList().isEmpty())
-            warehouseClient.postCompanies(dtoUtil.getCompanyList());
-        if (!dtoUtil.getPatentList().isEmpty())
-            warehouseClient.postPatents(dtoUtil.getPatentList());
-        if (!dtoUtil.getClassificationList().isEmpty())
-            warehouseClient.postClassifications(dtoUtil.getClassificationList());
-        if (!dtoUtil.getFinanceList().isEmpty())
-            warehouseClient.postFinances(dtoUtil.getFinanceList());
-        if (!dtoUtil.getMajorShareholderList().isEmpty())
-            warehouseClient.postMajorShareholders(dtoUtil.getMajorShareholderList());
-        if (!dtoUtil.getManagementIndexList().isEmpty())
-            warehouseClient.postManagementIndexes(dtoUtil.getManagementIndexList());
-        if (!dtoUtil.getCommendationList().isEmpty())
-            warehouseClient.postCommendations(dtoUtil.getCommendationList());
-        if (!dtoUtil.getCertificationList().isEmpty())
-            warehouseClient.postCertifications(dtoUtil.getCertificationList());
-        if (!dtoUtil.getSubsidyList().isEmpty())
-            warehouseClient.postSubsidies(dtoUtil.getSubsidyList());
-        if (!dtoUtil.getProcurementList().isEmpty())
-            warehouseClient.postProcurements(dtoUtil.getProcurementList());
-        if (!dtoUtil.getItemInfoList().isEmpty())
-            warehouseClient.postItemInfos(dtoUtil.getItemInfoList());
-        if (!dtoUtil.getBaseInfoList().isEmpty())
-            warehouseClient.postBaseInfos(dtoUtil.getBaseInfoList());
-        if (!dtoUtil.getWomenActivityInfoList().isEmpty())
-            warehouseClient.postWomenActivities(dtoUtil.getWomenActivityInfoList());
-        if (!dtoUtil.getCompatibilityOfChildcareAndWorkList().isEmpty())
-            warehouseClient.postCompatibilities(dtoUtil.getCompatibilityOfChildcareAndWorkList());
-        if (!dtoUtil.getWorkplaceInfoList().isEmpty())
-            warehouseClient.postWorkplaceInfos(dtoUtil.getWorkplaceInfoList());
+    private void postInfo(EntityCollector collector) {
+        collector.forEachNonEmpty(warehouseClient::postEntities);
     }
 }

@@ -2,19 +2,38 @@ package com.java.importer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java.importer.model.dto.*;
+import com.java.importer.model.export.EntityCollector;
+import com.java.importer.model.export.EntityType;
 import com.java.importer.model.mapper.*;
-import com.java.importer.util.DTOUtil;
 import org.springframework.stereotype.Component;
+
+import java.util.Collection;
+import java.util.function.Consumer;
 
 import static com.java.importer.util.HashUtil.*;
 
 @Component
-public class CompanyPreparer {
+public final class CompanyPreparer {
 
     private final ObjectMapper objectMapper;
 
     public CompanyPreparer(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+    }
+
+    public void mapInto(String runId, String corporateNumber,
+                        String raw, EntityCollector collector) throws Exception {
+        GbizCompany company = objectMapper.readValue(raw, GbizCompany.class);
+
+        collector.add(EntityType.COMPANY, mapCompany(company, runId));
+        mapPatents(company, runId, corporateNumber, collector);
+        mapFinances(company, runId, corporateNumber, collector);
+        mapCommendations(company, runId, corporateNumber, collector);
+        mapCertifications(company, runId, corporateNumber, collector);
+        mapSubsidies(company, runId, corporateNumber, collector);
+        mapProcurements(company, runId, corporateNumber, collector);
+        mapWorkplaceInfo(company, runId, corporateNumber, collector);
+        mapItemInfos(company, runId, corporateNumber, collector);
     }
 
     private CompanyDto mapCompany(GbizCompany company, String runId) {
@@ -54,14 +73,13 @@ public class CompanyPreparer {
     }
 
     private void mapPatents(GbizCompany company, String runId,
-                            String corporateNumber, DTOUtil dtoUtil) {
-        if (company.getPatent() == null) return;
+                            String corporateNumber, EntityCollector collector) {
 
-        for (Patent patent : company.getPatent()) {
+        forEachIfPresent(company.getPatent(), patent -> {
             String patentMergeKey = patent.patentMergeKey();
-            if (patentMergeKey == null) continue;
+            if (patentMergeKey == null) return;
 
-            PatentDto dto = new PatentDto(
+            collector.add(EntityType.PATENT, new PatentDto(
                     runId,
                     corporateNumber,
                     patentMergeKey,
@@ -70,270 +88,274 @@ public class CompanyPreparer {
                     patent.getApplicationDate(),
                     patent.getTitle(),
                     patent.getUrl()
-            );
-            dtoUtil.getPatentList().add(dto);
+            ));
 
-            if (patent.getClassifications() == null) continue;
+            mapClassifications(patent, runId, patentMergeKey, collector);
+        });
+    }
 
-            for (Classifications cls : patent.getClassifications()) {
-                String classificationMergeKey = cls.classificationMergeKey();
-                if (classificationMergeKey == null) continue;
+    private void mapClassifications(Patent patent, String runId,
+                                    String patentMergeKey, EntityCollector collector) {
 
-                ClassificationDto clsDto = new ClassificationDto(
-                        runId,
-                        patentMergeKey,
-                        classificationMergeKey,
-                        cls.getCodeValue(),
-                        cls.getCodeName(),
-                        cls.getJapanese()
-                );
-                dtoUtil.getClassificationList().add(clsDto);
-            }
-        }
+        forEachIfPresent(patent.getClassifications(), cls -> {
+            String mergeKey = cls.classificationMergeKey();
+            if (mergeKey == null) return;
+
+            collector.add(EntityType.CLASSIFICATION, new ClassificationDto(
+                    runId,
+                    patentMergeKey,
+                    mergeKey,
+                    cls.getCodeValue(),
+                    cls.getCodeName(),
+                    cls.getJapanese()
+            ));
+        });
     }
 
     private void mapFinances(GbizCompany company, String runId,
-                             String corporateNumber, DTOUtil dtoUtil) {
-        if (company.getFinance() == null) return;
+                             String corporateNumber, EntityCollector collector) {
 
-        for (Finance finance : company.getFinance()) {
+        forEachIfPresent(company.getFinance(), finance -> {
             String financeMergeKey = finance.financeMergeKey();
-            if (financeMergeKey == null) continue;
+            if (financeMergeKey == null) return;
 
-            FinanceDto dto = new FinanceDto(
+            collector.add(EntityType.FINANCE, new FinanceDto(
                     runId,
                     corporateNumber,
                     financeMergeKey,
                     finance.getAccountingStandards(),
                     finance.getFiscalYearCoverPage()
-            );
-            dtoUtil.getFinanceList().add(dto);
+            ));
 
-            if (finance.getMajorShareholders() != null) {
-                for (MajorShareholders ms : finance.getMajorShareholders()) {
-                    String shareholderMergeKey = ms.shareholderMergeKey();
-                    if (shareholderMergeKey == null) continue;
+            mapMajorShareholders(finance, runId, financeMergeKey, collector);
+            mapManagementIndices(finance, runId, financeMergeKey, collector);
+        });
+    }
 
-                    MajorShareholderDto msDto = new MajorShareholderDto(
-                            runId,
-                            financeMergeKey,
-                            shareholderMergeKey,
-                            ms.getNameMajorShareholders(),
-                            ms.getShareholdingRatio()
-                    );
-                    dtoUtil.getMajorShareholderList().add(msDto);
-                }
-            }
+    private void mapMajorShareholders(Finance finance, String runId,
+                                      String financeMergeKey, EntityCollector collector) {
 
-            if (finance.getManagementIndex() != null) {
-                for (ManagementIndex mi : finance.getManagementIndex()) {
-                    String managementIndexMergeKey = mi.managementIndexMergeKey();
-                    if (managementIndexMergeKey == null) continue;
+        forEachIfPresent(finance.getMajorShareholders(), ms -> {
+            String mergeKey = ms.shareholderMergeKey();
+            if (mergeKey == null) return;
 
-                    ManagementIndexDto miDto = new ManagementIndexDto(
-                            runId,
-                            financeMergeKey,
-                            managementIndexMergeKey,
-                            mi.getPeriod(),
-                            mi.getNetSalesSummaryOfBusinessResults(),
-                            mi.getNetSalesSummaryOfBusinessResultsUnitRef(),
-                            mi.getOperatingRevenue1SummaryOfBusinessResults(),
-                            mi.getOperatingRevenue1SummaryOfBusinessResultsUnitRef(),
-                            mi.getOperatingRevenue2SummaryOfBusinessResults(),
-                            mi.getOperatingRevenue2SummaryOfBusinessResultsUnitRef(),
-                            mi.getGrossOperatingRevenueSummaryOfBusinessResults(),
-                            mi.getGrossOperatingRevenueSummaryOfBusinessResultsUnitRef(),
-                            mi.getOrdinaryIncomeSummaryOfBusinessResults(),
-                            mi.getOrdinaryIncomeSummaryOfBusinessResultsUnitRef(),
-                            mi.getNetPremiumsWrittenSummaryOfBusinessResultIns(),
-                            mi.getNetPremiumsWrittenSummaryOfBusinessResultsInsUnitRef(),
-                            mi.getOrdinaryIncomeLossSummaryOfBusinessResults(),
-                            mi.getOrdinaryIncomeLossSummaryOfBusinessResultsUnitRef(),
-                            mi.getNetIncomeLossSummaryOfBusinessResults(),
-                            mi.getNetIncomeLossSummaryOfBusinessResultsUnitRef(),
-                            mi.getCapitalStockSummaryOfBusinessResults(),
-                            mi.getCapitalStockSummaryOfBusinessResultsUnitRef(),
-                            mi.getNetAssetsSummaryOfBusinessResults(),
-                            mi.getNetAssetsSummaryOfBusinessResultsUnitRef(),
-                            mi.getTotalAssetsSummaryOfBusinessResults(),
-                            mi.getTotalAssetsSummaryOfBusinessResultsUnitRef(),
-                            mi.getNumberOfEmployees(),
-                            mi.getNumberOfEmployeesUnitRef()
-                    );
-                    dtoUtil.getManagementIndexList().add(miDto);
-                }
-            }
-        }
+            collector.add(EntityType.MAJOR_SHAREHOLDER, new MajorShareholderDto(
+                    runId,
+                    financeMergeKey,
+                    mergeKey,
+                    ms.getNameMajorShareholders(),
+                    ms.getShareholdingRatio()
+            ));
+        });
+    }
+
+    private void mapManagementIndices(Finance finance, String runId,
+                                      String financeMergeKey, EntityCollector collector) {
+
+        forEachIfPresent(finance.getManagementIndex(), mi -> {
+            String mergeKey = mi.managementIndexMergeKey();
+            if (mergeKey == null) return;
+
+            collector.add(EntityType.MANAGEMENT_INDEX, new ManagementIndexDto(
+                    runId,
+                    financeMergeKey,
+                    mergeKey,
+                    mi.getPeriod(),
+                    mi.getNetSalesSummaryOfBusinessResults(),
+                    mi.getNetSalesSummaryOfBusinessResultsUnitRef(),
+                    mi.getOperatingRevenue1SummaryOfBusinessResults(),
+                    mi.getOperatingRevenue1SummaryOfBusinessResultsUnitRef(),
+                    mi.getOperatingRevenue2SummaryOfBusinessResults(),
+                    mi.getOperatingRevenue2SummaryOfBusinessResultsUnitRef(),
+                    mi.getGrossOperatingRevenueSummaryOfBusinessResults(),
+                    mi.getGrossOperatingRevenueSummaryOfBusinessResultsUnitRef(),
+                    mi.getOrdinaryIncomeSummaryOfBusinessResults(),
+                    mi.getOrdinaryIncomeSummaryOfBusinessResultsUnitRef(),
+                    mi.getNetPremiumsWrittenSummaryOfBusinessResultIns(),
+                    mi.getNetPremiumsWrittenSummaryOfBusinessResultsInsUnitRef(),
+                    mi.getOrdinaryIncomeLossSummaryOfBusinessResults(),
+                    mi.getOrdinaryIncomeLossSummaryOfBusinessResultsUnitRef(),
+                    mi.getNetIncomeLossSummaryOfBusinessResults(),
+                    mi.getNetIncomeLossSummaryOfBusinessResultsUnitRef(),
+                    mi.getCapitalStockSummaryOfBusinessResults(),
+                    mi.getCapitalStockSummaryOfBusinessResultsUnitRef(),
+                    mi.getNetAssetsSummaryOfBusinessResults(),
+                    mi.getNetAssetsSummaryOfBusinessResultsUnitRef(),
+                    mi.getTotalAssetsSummaryOfBusinessResults(),
+                    mi.getTotalAssetsSummaryOfBusinessResultsUnitRef(),
+                    mi.getNumberOfEmployees(),
+                    mi.getNumberOfEmployeesUnitRef()
+            ));
+        });
     }
 
     private void mapCommendations(GbizCompany company, String runId,
-                                  String corporateNumber, DTOUtil dtoUtil) {
-        if (company.getCommendation() == null) return;
+                                  String corporateNumber, EntityCollector collector) {
 
-        for (Commendation c : company.getCommendation()) {
-            String commendationMergeKey = c.commendationMergeKey();
-            if (commendationMergeKey == null) continue;
+        forEachIfPresent(company.getCommendation(), c -> {
+            String mergeKey = c.commendationMergeKey();
+            if (mergeKey == null) return;
 
-            CommendationDto dto = new CommendationDto(
+            collector.add(EntityType.COMMENDATION, new CommendationDto(
                     runId,
                     corporateNumber,
-                    commendationMergeKey,
+                    mergeKey,
                     c.getDateOfCommendation(),
                     c.getTitle(),
                     c.getTarget(),
                     c.getCategory(),
                     c.getGovernmentDepartments(),
                     c.getNote()
-            );
-            dtoUtil.getCommendationList().add(dto);
-        }
+            ));
+        });
     }
 
     private void mapCertifications(GbizCompany company, String runId,
-                                   String corporateNumber, DTOUtil dtoUtil) {
-        if (company.getCertification() == null) return;
+                                   String corporateNumber, EntityCollector collector) {
 
-        for (Certification c : company.getCertification()) {
-            String certificationMergeKey = c.certificationMergeKey();
-            if (certificationMergeKey == null) continue;
+        forEachIfPresent(company.getCertification(), c -> {
+            String mergeKey = c.certificationMergeKey();
+            if (mergeKey == null) return;
 
-            CertificationDto dto = new CertificationDto(
+            collector.add(EntityType.CERTIFICATION, new CertificationDto(
                     runId,
                     corporateNumber,
-                    certificationMergeKey,
+                    mergeKey,
                     c.getDateOfApproval(),
                     c.getTitle(),
                     c.getTarget(),
                     c.getGovernmentDepartments(),
                     c.getCategory()
-            );
-            dtoUtil.getCertificationList().add(dto);
-        }
+            ));
+        });
     }
 
     private void mapSubsidies(GbizCompany company, String runId,
-                              String corporateNumber, DTOUtil dtoUtil) {
-        if (company.getSubsidy() == null) return;
+                              String corporateNumber, EntityCollector collector) {
 
-        for (Subsidy s : company.getSubsidy()) {
-            String subsidyMergeKey = s.subsidyMergeKey();
-            if (subsidyMergeKey == null) continue;
+        forEachIfPresent(company.getSubsidy(), s -> {
+            String mergeKey = s.subsidyMergeKey();
+            if (mergeKey == null) return;
 
-            SubsidyDto dto = new SubsidyDto(
+            collector.add(EntityType.SUBSIDY, new SubsidyDto(
                     runId,
                     corporateNumber,
-                    subsidyMergeKey,
+                    mergeKey,
                     s.getDateOfApproval(),
                     s.getTitle(),
                     s.getAmount(),
                     s.getTarget(),
                     s.getGovernmentDepartments()
-            );
-            dtoUtil.getSubsidyList().add(dto);
-        }
+            ));
+        });
     }
 
     private void mapProcurements(GbizCompany company, String runId,
-                                 String corporateNumber, DTOUtil dtoUtil) {
-        if (company.getProcurement() == null) return;
+                                 String corporateNumber, EntityCollector collector) {
 
-        for (Procurement p : company.getProcurement()) {
-            String procurementMergeKey = p.procurementMergeKey();
-            if (procurementMergeKey == null) continue;
+        forEachIfPresent(company.getProcurement(), p -> {
+            String mergeKey = p.procurementMergeKey();
+            if (mergeKey == null) return;
 
-            ProcurementDto dto = new ProcurementDto(
+            collector.add(EntityType.PROCUREMENT, new ProcurementDto(
                     runId,
                     corporateNumber,
-                    procurementMergeKey,
+                    mergeKey,
                     p.getDateOfOrder(),
                     p.getTitle(),
                     p.getAmount(),
                     p.getGovernmentDepartments(),
                     p.getNote()
-            );
-            dtoUtil.getProcurementList().add(dto);
-        }
+            ));
+        });
     }
 
     private void mapWorkplaceInfo(GbizCompany company, String runId,
-                                  String corporateNumber, DTOUtil dtoUtil) {
+                                  String corporateNumber, EntityCollector collector) {
         WorkplaceInfo wi = company.getWorkplaceInfo();
         if (wi == null) return;
 
-        String baseInfoMergeKey = null;
-        String womenActivityMergeKey = null;
-        String compatibilityMergeKey = null;
+        String baseInfoMergeKey = mapBaseInfo(wi, runId, corporateNumber, collector);
+        String womenActivityMergeKey = mapWomenActivity(wi, runId, corporateNumber, collector);
+        String compatibilityMergeKey = mapCompatibility(wi, runId, corporateNumber, collector);
 
-        if (wi.getBaseInfos() != null) {
-            BaseInfos bi = wi.getBaseInfos();
-            baseInfoMergeKey = bi.baseInfoMergeKey();
+        String workplaceInfoMergeKey = mergeKeyOrNull(
+                baseInfoMergeKey, womenActivityMergeKey, compatibilityMergeKey);
 
-            if (baseInfoMergeKey != null) {
-                BaseInfoDto dto = new BaseInfoDto(
-                        runId,
-                        corporateNumber,
-                        baseInfoMergeKey,
-                        bi.getAverageContinuousServiceYearsType(),
-                        bi.getAverageContinuousServiceYearsMale(),
-                        bi.getAverageContinuousServiceYearsFemale(),
-                        bi.getAverageContinuousServiceYears(),
-                        bi.getAverageAge(),
-                        bi.getMonthAveragePredeterminedOvertimeHours()
-                );
-                dtoUtil.getBaseInfoList().add(dto);
-            }
-        }
-
-        if (wi.getWomenActivityInfos() != null) {
-            WomenActivityInfos wa = wi.getWomenActivityInfos();
-            womenActivityMergeKey = wa.womenActivityMergeKey();
-
-            if (womenActivityMergeKey != null) {
-                WomenActivityInfoDto dto = new WomenActivityInfoDto(
-                        runId,
-                        corporateNumber,
-                        womenActivityMergeKey,
-                        wa.getFemaleWorkersProportionType(),
-                        wa.getFemaleWorkersProportion(),
-                        wa.getFemaleShareOfManager(),
-                        wa.getGenderTotalOfManager(),
-                        wa.getFemaleShareOfOfficers(),
-                        wa.getGenderTotalOfOfficers()
-                );
-                dtoUtil.getWomenActivityInfoList().add(dto);
-            }
-        }
-
-        if (wi.getCompatibilityOfChildcareAndWork() != null) {
-            CompatibilityOfChildcareAndWork cc = wi.getCompatibilityOfChildcareAndWork();
-            compatibilityMergeKey = cc.compatChildcareMergeKey();
-
-            if (compatibilityMergeKey != null) {
-                CompatibilityOfChildcareAndWorkDto dto = new CompatibilityOfChildcareAndWorkDto(
-                        runId,
-                        corporateNumber,
-                        compatibilityMergeKey,
-                        cc.getNumberOfPaternityLeave(),
-                        cc.getNumberOfMaternityLeave(),
-                        cc.getPaternityLeaveAcquisitionNum(),
-                        cc.getMaternityLeaveAcquisitionNum()
-                );
-                dtoUtil.getCompatibilityOfChildcareAndWorkList().add(dto);
-            }
-        }
-
-        String workplaceInfoMergeKey = workplaceInfoMergeKey(wi);
         if (workplaceInfoMergeKey != null) {
-            WorkplaceInfoDto dto = new WorkplaceInfoDto(
+            collector.add(EntityType.WORKPLACE_INFO, new WorkplaceInfoDto(
                     runId,
                     corporateNumber,
                     workplaceInfoMergeKey,
                     baseInfoMergeKey,
                     womenActivityMergeKey,
                     compatibilityMergeKey
-            );
-            dtoUtil.getWorkplaceInfoList().add(dto);
+            ));
         }
+    }
+
+    private String mapBaseInfo(WorkplaceInfo wi, String runId,
+                               String corporateNumber, EntityCollector collector) {
+        if (wi.getBaseInfos() == null) return null;
+
+        BaseInfos bi = wi.getBaseInfos();
+        String mergeKey = bi.baseInfoMergeKey();
+        if (mergeKey == null) return null;
+
+        collector.add(EntityType.BASE_INFO, new BaseInfoDto(
+                runId,
+                corporateNumber,
+                mergeKey,
+                bi.getAverageContinuousServiceYearsType(),
+                bi.getAverageContinuousServiceYearsMale(),
+                bi.getAverageContinuousServiceYearsFemale(),
+                bi.getAverageContinuousServiceYears(),
+                bi.getAverageAge(),
+                bi.getMonthAveragePredeterminedOvertimeHours()
+        ));
+        return mergeKey;
+    }
+
+    private String mapWomenActivity(WorkplaceInfo wi, String runId,
+                                    String corporateNumber, EntityCollector collector) {
+        if (wi.getWomenActivityInfos() == null) return null;
+
+        WomenActivityInfos wa = wi.getWomenActivityInfos();
+        String mergeKey = wa.womenActivityMergeKey();
+        if (mergeKey == null) return null;
+
+        collector.add(EntityType.WOMEN_ACTIVITY, new WomenActivityInfoDto(
+                runId,
+                corporateNumber,
+                mergeKey,
+                wa.getFemaleWorkersProportionType(),
+                wa.getFemaleWorkersProportion(),
+                wa.getFemaleShareOfManager(),
+                wa.getGenderTotalOfManager(),
+                wa.getFemaleShareOfOfficers(),
+                wa.getGenderTotalOfOfficers()
+        ));
+        return mergeKey;
+    }
+
+    private String mapCompatibility(WorkplaceInfo wi, String runId,
+                                    String corporateNumber, EntityCollector collector) {
+        if (wi.getCompatibilityOfChildcareAndWork() == null) return null;
+
+        CompatibilityOfChildcareAndWork cc = wi.getCompatibilityOfChildcareAndWork();
+        String mergeKey = cc.compatChildcareMergeKey();
+        if (mergeKey == null) return null;
+
+        collector.add(EntityType.COMPATIBILITY, new CompatibilityOfChildcareAndWorkDto(
+                runId,
+                corporateNumber,
+                mergeKey,
+                cc.getNumberOfPaternityLeave(),
+                cc.getNumberOfMaternityLeave(),
+                cc.getPaternityLeaveAcquisitionNum(),
+                cc.getMaternityLeaveAcquisitionNum()
+        ));
+        return mergeKey;
     }
 
     private String workplaceInfoMergeKey(WorkplaceInfo wi) {
@@ -348,28 +370,24 @@ public class CompanyPreparer {
     }
 
     private void mapItemInfos(GbizCompany company, String runId,
-                              String corporateNumber, DTOUtil dtoUtil) {
-        if (company.getIndustry() != null) {
-            for (String value : company.getIndustry()) {
-                if (value == null || value.isBlank()) continue;
+                              String corporateNumber, EntityCollector collector) {
 
-                ItemInfoDto dto = buildItemInfoDto(runId, corporateNumber, value, true);
-                if (dto != null) {
-                    dtoUtil.getItemInfoList().add(dto);
-                }
+        mapItemInfoValues(company.getIndustry(), runId, corporateNumber, true, collector);
+        mapItemInfoValues(company.getBusinessItems(), runId, corporateNumber, false, collector);
+    }
+
+    private void mapItemInfoValues(Collection<String> values, String runId,
+                                   String corporateNumber, boolean isIndustry,
+                                   EntityCollector collector) {
+
+        forEachIfPresent(values, value -> {
+            if (value == null || value.isBlank()) return;
+
+            ItemInfoDto dto = buildItemInfoDto(runId, corporateNumber, value, isIndustry);
+            if (dto != null) {
+                collector.add(EntityType.ITEM_INFO, dto);
             }
-        }
-
-        if (company.getBusinessItems() != null) {
-            for (String value : company.getBusinessItems()) {
-                if (value == null || value.isBlank()) continue;
-
-                ItemInfoDto dto = buildItemInfoDto(runId, corporateNumber, value, false);
-                if (dto != null) {
-                    dtoUtil.getItemInfoList().add(dto);
-                }
-            }
-        }
+        });
     }
 
     private ItemInfoDto buildItemInfoDto(String runId, String corporateNumber,
@@ -386,18 +404,8 @@ public class CompanyPreparer {
         );
     }
 
-    public void mapInto(String runId, String corporateNumber,
-                        String raw, DTOUtil dtoUtil) throws Exception {
-        GbizCompany company = objectMapper.readValue(raw, GbizCompany.class);
-
-        dtoUtil.getCompanyList().add(mapCompany(company, runId));
-        mapPatents(company, runId, corporateNumber, dtoUtil);
-        mapFinances(company, runId, corporateNumber, dtoUtil);
-        mapCommendations(company, runId, corporateNumber, dtoUtil);
-        mapCertifications(company, runId, corporateNumber, dtoUtil);
-        mapSubsidies(company, runId, corporateNumber, dtoUtil);
-        mapProcurements(company, runId, corporateNumber, dtoUtil);
-        mapWorkplaceInfo(company, runId, corporateNumber, dtoUtil);
-        mapItemInfos(company, runId, corporateNumber, dtoUtil);
+    private <T> void forEachIfPresent(Collection<T> collection, Consumer<T> action) {
+        if (collection == null) return;
+        collection.forEach(action);
     }
 }
