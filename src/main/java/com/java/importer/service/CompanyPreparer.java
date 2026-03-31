@@ -2,8 +2,7 @@ package com.java.importer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java.importer.model.dto.*;
-import com.java.importer.model.export.EntityCollector;
-import com.java.importer.model.export.EntityType;
+import com.java.importer.model.export.BatchPayloadCollector;
 import com.java.importer.model.mapper.*;
 import org.springframework.stereotype.Component;
 
@@ -22,10 +21,10 @@ public final class CompanyPreparer {
     }
 
     public void mapInto(String runId, String corporateNumber,
-                        String raw, EntityCollector collector) throws Exception {
+                        String raw, BatchPayloadCollector collector) throws Exception {
         GbizCompany company = objectMapper.readValue(raw, GbizCompany.class);
 
-        collector.add(EntityType.COMPANY, mapCompany(company, runId));
+        collector.addCompany(corporateNumber, mapCompany(company, runId));
         mapPatents(company, runId, corporateNumber, collector);
         mapFinances(company, runId, corporateNumber, collector);
         mapCommendations(company, runId, corporateNumber, collector);
@@ -73,13 +72,15 @@ public final class CompanyPreparer {
     }
 
     private void mapPatents(GbizCompany company, String runId,
-                            String corporateNumber, EntityCollector collector) {
+                            String corporateNumber, BatchPayloadCollector collector) {
 
         forEachIfPresent(company.getPatent(), patent -> {
             String patentMergeKey = patent.patentMergeKey();
             if (patentMergeKey == null) return;
 
-            collector.add(EntityType.PATENT, new PatentDto(
+            collector.registerPatentKey(patentMergeKey);
+
+            collector.addPatent(corporateNumber, new PatentDto(
                     runId,
                     corporateNumber,
                     patentMergeKey,
@@ -95,13 +96,13 @@ public final class CompanyPreparer {
     }
 
     private void mapClassifications(Patent patent, String runId,
-                                    String patentMergeKey, EntityCollector collector) {
+                                    String patentMergeKey, BatchPayloadCollector collector) {
 
         forEachIfPresent(patent.getClassifications(), cls -> {
             String mergeKey = cls.classificationMergeKey();
             if (mergeKey == null) return;
 
-            collector.add(EntityType.CLASSIFICATION, new ClassificationDto(
+            collector.addClassification(patentMergeKey, new ClassificationDto(
                     runId,
                     patentMergeKey,
                     mergeKey,
@@ -113,13 +114,13 @@ public final class CompanyPreparer {
     }
 
     private void mapFinances(GbizCompany company, String runId,
-                             String corporateNumber, EntityCollector collector) {
+                             String corporateNumber, BatchPayloadCollector collector) {
 
         forEachIfPresent(company.getFinance(), finance -> {
             String financeMergeKey = finance.financeMergeKey();
             if (financeMergeKey == null) return;
 
-            collector.add(EntityType.FINANCE, new FinanceDto(
+            collector.addFinance(corporateNumber, new FinanceDto(
                     runId,
                     corporateNumber,
                     financeMergeKey,
@@ -127,19 +128,22 @@ public final class CompanyPreparer {
                     finance.getFiscalYearCoverPage()
             ));
 
+            collector.registerFinanceKeyForShareholders(financeMergeKey);
+            collector.registerFinanceKeyForManagementIndexes(financeMergeKey);
+
             mapMajorShareholders(finance, runId, financeMergeKey, collector);
             mapManagementIndices(finance, runId, financeMergeKey, collector);
         });
     }
 
     private void mapMajorShareholders(Finance finance, String runId,
-                                      String financeMergeKey, EntityCollector collector) {
+                                      String financeMergeKey, BatchPayloadCollector collector) {
 
         forEachIfPresent(finance.getMajorShareholders(), ms -> {
             String mergeKey = ms.shareholderMergeKey();
             if (mergeKey == null) return;
 
-            collector.add(EntityType.MAJOR_SHAREHOLDER, new MajorShareholderDto(
+            collector.addMajorShareholder(financeMergeKey, new MajorShareholderDto(
                     runId,
                     financeMergeKey,
                     mergeKey,
@@ -150,13 +154,13 @@ public final class CompanyPreparer {
     }
 
     private void mapManagementIndices(Finance finance, String runId,
-                                      String financeMergeKey, EntityCollector collector) {
+                                      String financeMergeKey, BatchPayloadCollector collector) {
 
         forEachIfPresent(finance.getManagementIndex(), mi -> {
             String mergeKey = mi.managementIndexMergeKey();
             if (mergeKey == null) return;
 
-            collector.add(EntityType.MANAGEMENT_INDEX, new ManagementIndexDto(
+            collector.addManagementIndex(financeMergeKey, new ManagementIndexDto(
                     runId,
                     financeMergeKey,
                     mergeKey,
@@ -190,13 +194,13 @@ public final class CompanyPreparer {
     }
 
     private void mapCommendations(GbizCompany company, String runId,
-                                  String corporateNumber, EntityCollector collector) {
+                                  String corporateNumber, BatchPayloadCollector collector) {
 
         forEachIfPresent(company.getCommendation(), c -> {
             String mergeKey = c.commendationMergeKey();
             if (mergeKey == null) return;
 
-            collector.add(EntityType.COMMENDATION, new CommendationDto(
+            collector.addCommendation(corporateNumber, new CommendationDto(
                     runId,
                     corporateNumber,
                     mergeKey,
@@ -211,13 +215,13 @@ public final class CompanyPreparer {
     }
 
     private void mapCertifications(GbizCompany company, String runId,
-                                   String corporateNumber, EntityCollector collector) {
+                                   String corporateNumber, BatchPayloadCollector collector) {
 
         forEachIfPresent(company.getCertification(), c -> {
             String mergeKey = c.certificationMergeKey();
             if (mergeKey == null) return;
 
-            collector.add(EntityType.CERTIFICATION, new CertificationDto(
+            collector.addCertification(corporateNumber, new CertificationDto(
                     runId,
                     corporateNumber,
                     mergeKey,
@@ -231,13 +235,13 @@ public final class CompanyPreparer {
     }
 
     private void mapSubsidies(GbizCompany company, String runId,
-                              String corporateNumber, EntityCollector collector) {
+                              String corporateNumber, BatchPayloadCollector collector) {
 
         forEachIfPresent(company.getSubsidy(), s -> {
             String mergeKey = s.subsidyMergeKey();
             if (mergeKey == null) return;
 
-            collector.add(EntityType.SUBSIDY, new SubsidyDto(
+            collector.addSubsidy(corporateNumber, new SubsidyDto(
                     runId,
                     corporateNumber,
                     mergeKey,
@@ -251,13 +255,13 @@ public final class CompanyPreparer {
     }
 
     private void mapProcurements(GbizCompany company, String runId,
-                                 String corporateNumber, EntityCollector collector) {
+                                 String corporateNumber, BatchPayloadCollector collector) {
 
         forEachIfPresent(company.getProcurement(), p -> {
             String mergeKey = p.procurementMergeKey();
             if (mergeKey == null) return;
 
-            collector.add(EntityType.PROCUREMENT, new ProcurementDto(
+            collector.addProcurement(corporateNumber, new ProcurementDto(
                     runId,
                     corporateNumber,
                     mergeKey,
@@ -271,7 +275,7 @@ public final class CompanyPreparer {
     }
 
     private void mapWorkplaceInfo(GbizCompany company, String runId,
-                                  String corporateNumber, EntityCollector collector) {
+                                  String corporateNumber, BatchPayloadCollector collector) {
         WorkplaceInfo wi = company.getWorkplaceInfo();
         if (wi == null) return;
 
@@ -283,7 +287,7 @@ public final class CompanyPreparer {
                 baseInfoMergeKey, womenActivityMergeKey, compatibilityMergeKey);
 
         if (workplaceInfoMergeKey != null) {
-            collector.add(EntityType.WORKPLACE_INFO, new WorkplaceInfoDto(
+            collector.addWorkplaceInfo(corporateNumber, new WorkplaceInfoDto(
                     runId,
                     corporateNumber,
                     workplaceInfoMergeKey,
@@ -295,14 +299,14 @@ public final class CompanyPreparer {
     }
 
     private String mapBaseInfo(WorkplaceInfo wi, String runId,
-                               String corporateNumber, EntityCollector collector) {
+                               String corporateNumber, BatchPayloadCollector collector) {
         if (wi.getBaseInfos() == null) return null;
 
         BaseInfos bi = wi.getBaseInfos();
         String mergeKey = bi.baseInfoMergeKey();
         if (mergeKey == null) return null;
 
-        collector.add(EntityType.BASE_INFO, new BaseInfoDto(
+        collector.addBaseInfo(corporateNumber, new BaseInfoDto(
                 runId,
                 corporateNumber,
                 mergeKey,
@@ -317,14 +321,14 @@ public final class CompanyPreparer {
     }
 
     private String mapWomenActivity(WorkplaceInfo wi, String runId,
-                                    String corporateNumber, EntityCollector collector) {
+                                    String corporateNumber, BatchPayloadCollector collector) {
         if (wi.getWomenActivityInfos() == null) return null;
 
         WomenActivityInfos wa = wi.getWomenActivityInfos();
         String mergeKey = wa.womenActivityMergeKey();
         if (mergeKey == null) return null;
 
-        collector.add(EntityType.WOMEN_ACTIVITY, new WomenActivityInfoDto(
+        collector.addWomenActivity(corporateNumber, new WomenActivityInfoDto(
                 runId,
                 corporateNumber,
                 mergeKey,
@@ -339,14 +343,14 @@ public final class CompanyPreparer {
     }
 
     private String mapCompatibility(WorkplaceInfo wi, String runId,
-                                    String corporateNumber, EntityCollector collector) {
+                                    String corporateNumber, BatchPayloadCollector collector) {
         if (wi.getCompatibilityOfChildcareAndWork() == null) return null;
 
         CompatibilityOfChildcareAndWork cc = wi.getCompatibilityOfChildcareAndWork();
         String mergeKey = cc.compatChildcareMergeKey();
         if (mergeKey == null) return null;
 
-        collector.add(EntityType.COMPATIBILITY, new CompatibilityOfChildcareAndWorkDto(
+        collector.addCompatibility(corporateNumber, new CompatibilityOfChildcareAndWorkDto(
                 runId,
                 corporateNumber,
                 mergeKey,
@@ -370,7 +374,7 @@ public final class CompanyPreparer {
     }
 
     private void mapItemInfos(GbizCompany company, String runId,
-                              String corporateNumber, EntityCollector collector) {
+                              String corporateNumber, BatchPayloadCollector collector) {
 
         mapItemInfoValues(company.getIndustry(), runId, corporateNumber, true, collector);
         mapItemInfoValues(company.getBusinessItems(), runId, corporateNumber, false, collector);
@@ -378,14 +382,14 @@ public final class CompanyPreparer {
 
     private void mapItemInfoValues(Collection<String> values, String runId,
                                    String corporateNumber, boolean isIndustry,
-                                   EntityCollector collector) {
+                                   BatchPayloadCollector collector) {
 
         forEachIfPresent(values, value -> {
             if (value == null || value.isBlank()) return;
 
             ItemInfoDto dto = buildItemInfoDto(runId, corporateNumber, value, isIndustry);
             if (dto != null) {
-                collector.add(EntityType.ITEM_INFO, dto);
+                collector.addItemInfo(corporateNumber, dto);
             }
         });
     }

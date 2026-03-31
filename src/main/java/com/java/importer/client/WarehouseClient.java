@@ -1,12 +1,9 @@
 package com.java.importer.client;
 
-import com.java.importer.model.dto.*;
-import com.java.importer.model.export.EntityType;
+import com.java.importer.model.export.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-
-import java.util.List;
 
 @Component
 public class WarehouseClient {
@@ -20,23 +17,35 @@ public class WarehouseClient {
                 .build();
     }
 
-    public void postEntities(EntityType type, List<?> entities) {
-        post(type.getEndpoint(), entities);
+    public void postBatch(EntityType type, TopicBatchRequest<?> request) {
+        restClient.post()
+                .uri(type.getEndpoint())
+                .body(request)
+                .retrieve()
+                .toBodilessEntity();
     }
 
-    public void completeEntity(String runId, String entity) {
-        post("/run/" + runId + "/complete/" + entity, null);
+    public void postClassificationBatch(ClassificationBatchRequest request) {
+        restClient.post()
+                .uri(EntityType.CLASSIFICATION.getEndpoint())
+                .body(request)
+                .retrieve()
+                .toBodilessEntity();
     }
 
-    public void completeRun(String runId) {
-        post("/run/" + runId + "/complete", null);
+    public void postMajorShareholderBatch(MajorShareholderBatchRequest request) {
+        restClient.post()
+                .uri(EntityType.MAJOR_SHAREHOLDER.getEndpoint())
+                .body(request)
+                .retrieve()
+                .toBodilessEntity();
     }
 
-    private void post(String path, Object body) {
-        var request = restClient.post().uri(path);
-        if (body != null) {
-            request.body(body);
-        }
-        request.retrieve().toBodilessEntity();
+    public void postManagementIndexBatch(ManagementIndexBatchRequest request) {
+        restClient.post()
+                .uri(EntityType.MANAGEMENT_INDEX.getEndpoint())
+                .body(request)
+                .retrieve()
+                .toBodilessEntity();
     }
 }
