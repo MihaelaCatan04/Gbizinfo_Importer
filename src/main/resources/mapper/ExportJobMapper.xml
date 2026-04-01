@@ -6,6 +6,7 @@
         INSERT INTO export_job (checkpoint_date, corporate_number)
         SELECT checkpoint_date, corporate_number
         FROM company_entry
+        WHERE checkpoint_date = #{checkpointDate}
         ON CONFLICT DO NOTHING
     </insert>
 
@@ -21,6 +22,7 @@
             claimed_at = now()
         FROM claimed
         WHERE export_job.corporate_number = claimed.corporate_number
+          AND export_job.corporate_number = claimed.corporate_number
         RETURNING export_job.corporate_number
     </select>
 
@@ -29,11 +31,13 @@
         SET status       = 'done',
             completed_at = now()
         WHERE corporate_number = #{corporateNumber}
+          AND checkpoint_date = #{checkpointDate}
     </update>
 
     <update id="markFailed">
         UPDATE export_job
         SET status = 'failed'
         WHERE corporate_number = #{corporateNumber}
+          AND checkpoint_date = #{checkpointDate}
     </update>
 </mapper>
