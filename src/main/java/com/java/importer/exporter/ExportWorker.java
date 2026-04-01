@@ -30,10 +30,7 @@ public class ExportWorker {
     @Value("${node.id}")
     String nodeId;
 
-    public ExportWorker(ExportJobMapper exportJobMapper,
-                        CompanyPreparer companyPreparer,
-                        WarehouseClient warehouseClient,
-                        CompanyEntryMapper companyEntryMapper, PipelineControlService pipelineControlService) {
+    public ExportWorker(ExportJobMapper exportJobMapper, CompanyPreparer companyPreparer, WarehouseClient warehouseClient, CompanyEntryMapper companyEntryMapper, PipelineControlService pipelineControlService) {
         this.exportJobMapper = exportJobMapper;
         this.companyPreparer = companyPreparer;
         this.warehouseClient = warehouseClient;

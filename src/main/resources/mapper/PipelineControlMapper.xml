@@ -26,46 +26,46 @@
 
     <update id="tryStartImport">
         UPDATE pipeline_control
-        SET phase = 'IMPORTING',
-        owner_node = #{nodeId},
-        lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-        updated_at = now()
+        SET phase       = 'IMPORTING',
+            owner_node  = #{nodeId},
+            lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
-        AND export_requested = false
-        AND (
-        phase = 'IDLE'
-        OR lease_until IS NULL
-        OR lease_until &lt; now()
-        )
+          AND export_requested = false
+          AND (
+            phase = 'IDLE'
+                OR lease_until IS NULL
+                OR lease_until &lt; now()
+            )
     </update>
 
     <update id="requestExport">
         UPDATE pipeline_control
         SET export_requested = true,
-            updated_at = now()
+            updated_at       = now()
         WHERE pipeline_name = #{pipelineName}
     </update>
 
     <update id="tryStartExport">
         UPDATE pipeline_control
-        SET phase = 'EXPORTING',
-        owner_node = #{nodeId},
-        lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-        updated_at = now()
+        SET phase       = 'EXPORTING',
+            owner_node  = #{nodeId},
+            lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
-        AND export_requested = true
-        AND (
-        phase = 'IDLE'
-        OR lease_until IS NULL
-        OR lease_until &lt; now()
-        )
+          AND export_requested = true
+          AND (
+            phase = 'IDLE'
+                OR lease_until IS NULL
+                OR lease_until &lt; now()
+            )
     </update>
     <update id="finishImport">
         UPDATE pipeline_control
-        SET phase = 'IDLE',
-            owner_node = null,
+        SET phase       = 'IDLE',
+            owner_node  = null,
             lease_until = null,
-            updated_at = now()
+            updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
           AND phase = 'IMPORTING'
           AND owner_node = #{nodeId}
@@ -73,11 +73,11 @@
 
     <update id="finishExport">
         UPDATE pipeline_control
-        SET phase = 'IDLE',
+        SET phase            = 'IDLE',
             export_requested = false,
-            owner_node = null,
-            lease_until = null,
-            updated_at = now()
+            owner_node       = null,
+            lease_until      = null,
+            updated_at       = now()
         WHERE pipeline_name = #{pipelineName}
           AND phase = 'EXPORTING'
           AND owner_node = #{nodeId}
@@ -86,7 +86,7 @@
     <update id="renewImportLease">
         UPDATE pipeline_control
         SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-            updated_at = now()
+            updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
           AND phase = 'IMPORTING'
           AND owner_node = #{nodeId}
@@ -95,7 +95,7 @@
     <update id="renewExportLease">
         UPDATE pipeline_control
         SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-            updated_at = now()
+            updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
           AND phase = 'EXPORTING'
           AND owner_node = #{nodeId}

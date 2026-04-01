@@ -9,6 +9,8 @@ import java.util.Map;
 
 public class BatchPayloadCollector {
 
+    public final Map<String, List<ClassificationDto>> classificationsByPatent = new HashMap<>();
+    public final List<String> patentKeys = new ArrayList<>();
     private final Map<String, List<CompanyDto>> companies = new HashMap<>();
     private final Map<String, List<PatentDto>> patents = new HashMap<>();
     private final Map<String, List<FinanceDto>> finances = new HashMap<>();
@@ -25,8 +27,16 @@ public class BatchPayloadCollector {
     private final Map<String, List<WomenActivityInfoDto>> womenActivities = new HashMap<>();
     private final Map<String, List<CompatibilityOfChildcareAndWorkDto>> compatibilities = new HashMap<>();
     private final Map<String, List<WorkplaceInfoDto>> workplaceInfos = new HashMap<>();
-    public final Map<String, List<ClassificationDto>> classificationsByPatent = new HashMap<>();
-    public final List<String> patentKeys = new ArrayList<>();
+
+    private static <T> TopicBatchRequest<T> build(List<String> corporateNumbers, Map<String, List<T>> source) {
+        List<CompanySnapshot<T>> companies = new ArrayList<>();
+
+        for (String corporateNumber : corporateNumbers) {
+            companies.add(new CompanySnapshot<>(corporateNumber, source.getOrDefault(corporateNumber, List.of())));
+        }
+
+        return new TopicBatchRequest<>(companies);
+    }
 
     public void addCompany(String corporateNumber, CompanyDto dto) {
         companies.computeIfAbsent(corporateNumber, k -> new ArrayList<>()).add(dto);
@@ -104,10 +114,7 @@ public class BatchPayloadCollector {
         List<FinanceMajorShareholderSnapshot> finances = new ArrayList<>();
 
         for (String financeMergeKey : financeKeysForShareholders) {
-            finances.add(new FinanceMajorShareholderSnapshot(
-                    financeMergeKey,
-                    shareholdersByFinance.getOrDefault(financeMergeKey, List.of())
-            ));
+            finances.add(new FinanceMajorShareholderSnapshot(financeMergeKey, shareholdersByFinance.getOrDefault(financeMergeKey, List.of())));
         }
 
         return new MajorShareholderBatchRequest(finances);
@@ -117,10 +124,7 @@ public class BatchPayloadCollector {
         List<FinanceManagementIndexSnapshot> finances = new ArrayList<>();
 
         for (String financeMergeKey : financeKeysForManagementIndexes) {
-            finances.add(new FinanceManagementIndexSnapshot(
-                    financeMergeKey,
-                    managementIndexesByFinance.getOrDefault(financeMergeKey, List.of())
-            ));
+            finances.add(new FinanceManagementIndexSnapshot(financeMergeKey, managementIndexesByFinance.getOrDefault(financeMergeKey, List.of())));
         }
 
         return new ManagementIndexBatchRequest(finances);
@@ -162,21 +166,6 @@ public class BatchPayloadCollector {
         return build(corporateNumbers, workplaceInfos);
     }
 
-    private static <T> TopicBatchRequest<T> build(
-            List<String> corporateNumbers,
-            Map<String, List<T>> source
-    ) {
-        List<CompanySnapshot<T>> companies = new ArrayList<>();
-
-        for (String corporateNumber : corporateNumbers) {
-            companies.add(new CompanySnapshot<>(
-                    corporateNumber,
-                    source.getOrDefault(corporateNumber, List.of())
-            ));
-        }
-
-        return new TopicBatchRequest<>(companies);
-    }
     public void registerPatentKey(String patentMergeKey) {
         if (!patentKeys.contains(patentMergeKey)) {
             patentKeys.add(patentMergeKey);
@@ -199,10 +188,7 @@ public class BatchPayloadCollector {
         List<PatentClassificationSnapshot> patents = new ArrayList<>();
 
         for (String patentMergeKey : patentKeys) {
-            patents.add(new PatentClassificationSnapshot(
-                    patentMergeKey,
-                    classificationsByPatent.getOrDefault(patentMergeKey, List.of())
-            ));
+            patents.add(new PatentClassificationSnapshot(patentMergeKey, classificationsByPatent.getOrDefault(patentMergeKey, List.of())));
         }
 
         return new ClassificationBatchRequest(patents);

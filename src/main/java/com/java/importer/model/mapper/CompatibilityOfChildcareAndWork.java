@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
-import static com.java.importer.util.HashUtil.*;
+import static com.java.importer.util.HashUtil.mergeKeyOrNull;
+import static com.java.importer.util.HashUtil.normInt;
 
 @Setter
 @Getter

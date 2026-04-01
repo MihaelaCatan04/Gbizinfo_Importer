@@ -12,10 +12,6 @@ public class JacksonConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return JsonMapper.builder()
-                .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
-                .build();
+        return JsonMapper.builder().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS).configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false).configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true).build();
     }
 }

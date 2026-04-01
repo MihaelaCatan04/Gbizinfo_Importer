@@ -32,8 +32,7 @@ public final class HashUtil {
             return null;
         }
 
-        boolean allNullTokens = Arrays.stream(parts)
-                .allMatch(HashUtil::isNullToken);
+        boolean allNullTokens = Arrays.stream(parts).allMatch(HashUtil::isNullToken);
 
         if (allNullTokens) {
             return null;

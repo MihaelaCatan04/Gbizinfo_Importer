@@ -25,11 +25,7 @@ public class JobSchedulerService {
 
     private LocalDate transactionDate;
 
-    public JobSchedulerService(
-            DataImporter importer,
-            ExportCoordinator exportCoordinator,
-            PipelineControlService pipelineControlService
-    ) {
+    public JobSchedulerService(DataImporter importer, ExportCoordinator exportCoordinator, PipelineControlService pipelineControlService) {
         this.importer = importer;
         this.exportCoordinator = exportCoordinator;
         this.pipelineControlService = pipelineControlService;

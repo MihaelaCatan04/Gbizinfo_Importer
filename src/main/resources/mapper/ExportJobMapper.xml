@@ -10,13 +10,11 @@
     </insert>
 
     <select id="claimBatch" resultType="String">
-        WITH claimed AS (
-            SELECT corporate_number
-            FROM export_job
-            WHERE status = 'pending' and checkpoint_date = #{checkpointDate}
-            LIMIT #{batchSize}
-                FOR UPDATE SKIP LOCKED
-        )
+        WITH claimed AS (SELECT corporate_number
+                         FROM export_job
+                         WHERE status = 'pending'
+                           and checkpoint_date = #{checkpointDate}
+                         LIMIT #{batchSize} FOR UPDATE SKIP LOCKED)
         UPDATE export_job
         SET status     = 'processing',
             claimed_by = #{instanceId},
@@ -28,7 +26,7 @@
 
     <update id="markDone">
         UPDATE export_job
-        SET status = 'done',
+        SET status       = 'done',
             completed_at = now()
         WHERE corporate_number = #{corporateNumber}
     </update>

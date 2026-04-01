@@ -6,7 +6,8 @@ import lombok.Setter;
 
 import java.util.List;
 
-import static com.java.importer.util.HashUtil.*;
+import static com.java.importer.util.HashUtil.mergeKeyOrNull;
+import static com.java.importer.util.HashUtil.normText;
 
 @Setter
 @Getter

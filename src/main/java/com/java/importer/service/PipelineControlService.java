@@ -24,16 +24,8 @@ public class PipelineControlService {
         this.pipelineControlMapper = pipelineControlMapper;
     }
 
-    public PipelineControlDto getState() {
-        return pipelineControlMapper.findMain(PIPELINE_NAME);
-    }
-
     public boolean tryStartImport(String nodeId) {
-        int updated = pipelineControlMapper.tryStartImport(
-                PIPELINE_NAME,
-                nodeId,
-                importLeaseSeconds
-        );
+        int updated = pipelineControlMapper.tryStartImport(PIPELINE_NAME, nodeId, importLeaseSeconds);
 
         boolean success = updated == 1;
         if (success) {
@@ -50,11 +42,7 @@ public class PipelineControlService {
     }
 
     public boolean tryStartExport(String nodeId) {
-        int updated = pipelineControlMapper.tryStartExport(
-                PIPELINE_NAME,
-                nodeId,
-                exportLeaseSeconds
-        );
+        int updated = pipelineControlMapper.tryStartExport(PIPELINE_NAME, nodeId, exportLeaseSeconds);
 
         boolean success = updated == 1;
         if (success) {
@@ -65,7 +53,7 @@ public class PipelineControlService {
         return success;
     }
 
-    public boolean finishImport(String nodeId) {
+    public void finishImport(String nodeId) {
         int updated = pipelineControlMapper.finishImport(PIPELINE_NAME, nodeId);
         boolean success = updated == 1;
 
@@ -75,7 +63,6 @@ public class PipelineControlService {
             log.warn("Node {} could not release IMPORTING phase", nodeId);
         }
 
-        return success;
     }
 
     public void finishExport(String nodeId) {
@@ -90,20 +77,12 @@ public class PipelineControlService {
     }
 
     public boolean renewImportLease(String nodeId) {
-        int updated = pipelineControlMapper.renewImportLease(
-                PIPELINE_NAME,
-                nodeId,
-                importLeaseSeconds
-        );
+        int updated = pipelineControlMapper.renewImportLease(PIPELINE_NAME, nodeId, importLeaseSeconds);
         return updated == 1;
     }
 
     public boolean renewExportLease(String nodeId) {
-        int updated = pipelineControlMapper.renewExportLease(
-                PIPELINE_NAME,
-                nodeId,
-                exportLeaseSeconds
-        );
+        int updated = pipelineControlMapper.renewExportLease(PIPELINE_NAME, nodeId, exportLeaseSeconds);
         return updated == 1;
     }
 

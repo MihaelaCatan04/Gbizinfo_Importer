@@ -8,6 +8,5 @@ import java.time.LocalDate;
 
 @Mapper
 public interface DataMapper {
-    int copy(@Param("inputStream") InputStream inputStream,
-             @Param("dateInserted") LocalDate dateInserted);
+    int copy(@Param("inputStream") InputStream inputStream, @Param("dateInserted") LocalDate dateInserted);
 }
