@@ -27,6 +27,7 @@ public class DataImporter {
     private final PrepMapper prepMapper;
     private final DataMapper dataMapper;
     private final TransactionTemplate transactionTemplate;
+    private final PipelineControlService pipelineControlService;
 
     @Value("${apiToken}")
     private String apiToken;
@@ -34,15 +35,17 @@ public class DataImporter {
     private String url;
     @Value("${local-path}")
     private String localPath;
+    @Value("${node.id}")
+    private String nodeId;
 
-    public DataImporter(PrepMapper prepMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate) {
+    public DataImporter(PrepMapper prepMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate, PipelineControlService pipelineControlService) {
         this.prepMapper = prepMapper;
         this.dataMapper = dataMapper;
         this.transactionTemplate = transactionTemplate;
+        this.pipelineControlService = pipelineControlService;
     }
 
-    public void importDataRemote() throws Exception {
-        LocalDate transactionDate = LocalDate.now();
+    public void importDataRemote(LocalDate transactionDate) throws Exception {
         executeRemoteImport(transactionDate);
     }
 
@@ -56,8 +59,7 @@ public class DataImporter {
         }
     }
 
-    public void importFromLocalFolder() throws Exception {
-        LocalDate transactionDate = LocalDate.now();
+    public void importFromLocalFolder(LocalDate transactionDate) throws Exception {
         Path folder = validateLocalFolder();
 
         List<Path> files = listJsonFiles(folder);
@@ -76,11 +78,14 @@ public class DataImporter {
 
         try {
             transactionTemplate.executeWithoutResult(status -> {
+                if (!pipelineControlService.renewImportLease(nodeId)) {
+                    throw new IllegalStateException("Import lease lost for node " + nodeId);
+                }
                 if (checkAlreadyExists(name, transactionDate)) {
                     return;
                 }
                 try (var inputStream = Files.newInputStream(file)) {
-                    dataMapper.copy(inputStream);
+                    dataMapper.copy(inputStream, transactionDate);
                 } catch (IOException e) {
                     log.error("Exception ", e);
                 }
@@ -139,10 +144,13 @@ public class DataImporter {
     private void processZipEntry(ZipInputStream zip, String name, LocalDate transactionDate) {
         try {
             transactionTemplate.executeWithoutResult(status -> {
+                if (!pipelineControlService.renewImportLease(nodeId)) {
+                    throw new IllegalStateException("Import lease lost for node " + nodeId);
+                }
                 if (checkAlreadyExists(name, transactionDate)) {
                     return;
                 }
-                dataMapper.copy(zip);
+                dataMapper.copy(zip, transactionDate);
                 setCheckpoint(name, transactionDate);
             });
         } catch (Exception e) {

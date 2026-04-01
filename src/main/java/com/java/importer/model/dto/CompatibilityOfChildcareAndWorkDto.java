@@ -8,7 +8,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class CompatibilityOfChildcareAndWorkDto {
-    private String runId;
     private String corporateNumber;
     private String mergeKey;
     private Integer numberOfPaternityLeave;

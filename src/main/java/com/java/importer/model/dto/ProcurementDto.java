@@ -8,7 +8,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class ProcurementDto {
-    private String runId;
     private String corporateNumber;
     private String mergeKey;
     private String dateOfOrder;

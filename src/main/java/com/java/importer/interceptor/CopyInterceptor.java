@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.time.LocalDate;
 
 @Log4j2
 @Component
@@ -49,19 +50,33 @@ public class CopyInterceptor implements Interceptor {
 
         Object param = invocation.getArgs()[1];
 
-        if (!(param instanceof InputStream inputStream)) {
-            throw new IllegalStateException("Expected InputStream parameter for COPY");
+        if (!(param instanceof java.util.Map<?, ?> map)) {
+            throw new IllegalStateException("Expected parameter map for COPY");
         }
 
+        Object inputStreamObj = map.get("inputStream");
+        Object dateInsertedObj = map.get("dateInserted");
+
+        if (!(inputStreamObj instanceof InputStream inputStream)) {
+            throw new IllegalStateException("Expected inputStream parameter for COPY");
+        }
+
+        LocalDate dateInserted;
+
+        if (dateInsertedObj instanceof LocalDate ld) {
+            dateInserted = ld;
+        } else {
+            throw new IllegalStateException("Unsupported type for dateInserted: " + dateInsertedObj);
+        }
         Executor executor = (Executor) invocation.getTarget();
         Connection connection = executor.getTransaction().getConnection();
         PGConnection pgConnection = connection.unwrap(PGConnection.class);
 
-        executeCopy(pgConnection, inputStream);
+        executeCopy(pgConnection, inputStream, dateInserted);
         return 1;
     }
 
-    private void executeCopy(PGConnection pgConnection, InputStream inputStream) throws Exception {
+    private void executeCopy(PGConnection pgConnection, InputStream inputStream, LocalDate dateInsertedObj) throws Exception {
         InputStream nonClosing = new FilterInputStream(inputStream) {
             @Override
             public void close() {
@@ -74,13 +89,13 @@ public class CopyInterceptor implements Interceptor {
                 throw new IllegalStateException("Expected JSON array at root");
             }
 
-            writeValues(parser, out);
+            writeValues(parser, out, dateInsertedObj);
         }
 
         log.info("COPY completed");
     }
 
-    private void writeValues(JsonParser parser, PGCopyOutputStream out) throws IOException {
+    private void writeValues(JsonParser parser, PGCopyOutputStream out, LocalDate dateInsertedObj) throws IOException {
         while (parser.nextToken() != JsonToken.END_ARRAY) {
             JsonNode node = INPUT_MAPPER.readTree(parser);
             if (node == null) {
@@ -92,6 +107,8 @@ public class CopyInterceptor implements Interceptor {
             writeCsvField(out, json);
             out.write(',');
             writeCsvField(out, corporateNumber);
+            out.write(',');
+            writeCsvField(out, dateInsertedObj.toString());
             out.write('\n');
         }
     }

@@ -9,6 +9,7 @@ CREATE TABLE company_entry
 (
     entry_id         BIGSERIAL PRIMARY KEY,
     entry            jsonb       NOT NULL,
+    checkpoint_date  DATE        NOT NULL,
     corporate_number VARCHAR(13) NOT NULL,
     inserted_at      TIMESTAMP   NOT NULL DEFAULT now()
 );
@@ -17,11 +18,34 @@ CREATE INDEX idx_raw_company_corporate_number ON company_entry (corporate_number
 
 CREATE TABLE export_job
 (
-    run_id           VARCHAR(36) NOT NULL,
+    checkpoint_date  DATE        NOT NULL,
     corporate_number VARCHAR(13) NOT NULL,
     status           VARCHAR(20) NOT NULL DEFAULT 'pending',
     claimed_by       VARCHAR(255),
     claimed_at       TIMESTAMPTZ,
     completed_at     TIMESTAMPTZ,
-    PRIMARY KEY (run_id, corporate_number)
+    PRIMARY KEY (checkpoint_date, corporate_number)
 );
+
+CREATE TABLE pipeline_control
+(
+    pipeline_name    VARCHAR(20) PRIMARY KEY,
+    phase            VARCHAR(20),
+    export_requested BOOLEAN,
+    owner_node       VARCHAR(100),
+    lease_until      TIMESTAMP,
+    updated_at       TIMESTAMPTZ
+);
+
+insert into pipeline_control (pipeline_name,
+                              phase,
+                              export_requested,
+                              owner_node,
+                              lease_until,
+                              updated_at)
+values ('MAIN',
+        'IDLE',
+        false,
+        null,
+        null,
+        now());

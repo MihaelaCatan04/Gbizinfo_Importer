@@ -3,15 +3,16 @@ package com.java.importer.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
 public interface ExportJobMapper {
-    void populate(@Param("runId") String runId);
+    void populate();
 
-    List<String> claimBatch(@Param("runId") String runId, @Param("instanceId") String instanceId, @Param("batchSize") int batchSize);
+    List<String> claimBatch(@Param("instanceId") String instanceId, @Param("batchSize") int batchSize, @Param("checkpointDate") LocalDate checkpointDate);
 
-    void markDone(@Param("runId") String runId, @Param("corporateNumber") String corporateNumber);
+    void markDone(@Param("corporateNumber") String corporateNumber);
 
-    void markFailed(@Param("runId") String runId, @Param("corporateNumber") String corporateNumber);
+    void markFailed(@Param("corporateNumber") String corporateNumber);
 }

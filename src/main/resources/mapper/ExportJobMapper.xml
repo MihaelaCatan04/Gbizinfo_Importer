@@ -3,8 +3,8 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.java.importer.mapper.ExportJobMapper">
     <insert id="populate">
-        INSERT INTO export_job (run_id, corporate_number)
-        SELECT #{runId}, corporate_number
+        INSERT INTO export_job (checkpoint_date, corporate_number)
+        SELECT checkpoint_date, corporate_number
         FROM company_entry
         ON CONFLICT DO NOTHING
     </insert>
@@ -13,8 +13,7 @@
         WITH claimed AS (
             SELECT corporate_number
             FROM export_job
-            WHERE run_id = #{runId}
-              AND status = 'pending'
+            WHERE status = 'pending' and checkpoint_date = #{checkpointDate}
             LIMIT #{batchSize}
                 FOR UPDATE SKIP LOCKED
         )
@@ -24,7 +23,6 @@
             claimed_at = now()
         FROM claimed
         WHERE export_job.corporate_number = claimed.corporate_number
-          AND export_job.run_id = #{runId}
         RETURNING export_job.corporate_number
     </select>
 
@@ -32,14 +30,12 @@
         UPDATE export_job
         SET status = 'done',
             completed_at = now()
-        WHERE run_id = #{runId}
-          AND corporate_number = #{corporateNumber}
+        WHERE corporate_number = #{corporateNumber}
     </update>
 
     <update id="markFailed">
         UPDATE export_job
         SET status = 'failed'
-        WHERE run_id = #{runId}
-          AND corporate_number = #{corporateNumber}
+        WHERE corporate_number = #{corporateNumber}
     </update>
 </mapper>

@@ -8,7 +8,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class ClassificationDto {
-    private String runId;
     private String patentMergeKey;
     private String mergeKey;
     private String codeValue;

@@ -8,7 +8,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class CompanyDto {
-    private String runId;
     private String corporateNumber;
     private String name;
     private String kana;

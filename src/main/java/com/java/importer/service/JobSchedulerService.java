@@ -1,12 +1,13 @@
 package com.java.importer.service;
 
 import com.java.importer.exporter.ExportCoordinator;
+import com.java.importer.model.source.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.time.LocalDate;
 
 @Service
 @Slf4j
@@ -14,60 +15,70 @@ public class JobSchedulerService {
 
     private final DataImporter importer;
     private final ExportCoordinator exportCoordinator;
-    private final DatabasePreparer databasePreparer;
-
-    private final AtomicBoolean running = new AtomicBoolean(false);
+    private final PipelineControlService pipelineControlService;
 
     @Value("${data.source}")
-    private String dataSource;
+    private DataSource dataSource;
+
+    @Value("${node.id}")
+    private String nodeId;
+
+    private LocalDate transactionDate;
 
     public JobSchedulerService(
             DataImporter importer,
             ExportCoordinator exportCoordinator,
-            DatabasePreparer databasePreparer
+            PipelineControlService pipelineControlService
     ) {
         this.importer = importer;
         this.exportCoordinator = exportCoordinator;
-        this.databasePreparer = databasePreparer;
+        this.pipelineControlService = pipelineControlService;
     }
 
     @Scheduled(fixedDelayString = "${jobs.import.delay}")
-    public void runImporter() {
-        if (!running.compareAndSet(false, true)) {
-            log.warn("Importer skipped because another job is already running.");
+    public void runImporterTick() {
+        if (!pipelineControlService.tryStartImport(nodeId)) {
             return;
         }
 
         try {
-            if ("local".equals(dataSource)) {
-                importer.importFromLocalFolder();
-            } else if ("remote".equals(dataSource)) {
-                importer.importDataRemote();
+            transactionDate = LocalDate.now();
+            if (DataSource.LOCAL.equals(dataSource)) {
+                importer.importFromLocalFolder(transactionDate);
+            } else if (DataSource.REMOTE.equals(dataSource)) {
+                importer.importDataRemote(transactionDate);
             } else {
                 log.error("Invalid data source: {}", dataSource);
             }
         } catch (Exception e) {
             log.error("Failed to import data", e);
         } finally {
-            running.set(false);
+            pipelineControlService.finishImport(nodeId);
         }
     }
 
     @Scheduled(cron = "${jobs.export.cron}")
-    public void runExporter() {
-        if (!running.compareAndSet(false, true)) {
-            log.warn("Exporter skipped because another job is already running.");
+    public void requestExportTick() {
+        pipelineControlService.requestExport();
+    }
+
+    @Scheduled(fixedDelayString = "${jobs.orchestrator.delay}")
+    public void runOrchestratorTick() {
+        if (!pipelineControlService.isExportRequested()) {
+            return;
+        }
+
+        if (!pipelineControlService.tryStartExport(nodeId)) {
             return;
         }
 
         try {
-            exportCoordinator.run();
-            databasePreparer.prepareDatabase();
-            log.info("Data exported and database prepared");
+            exportCoordinator.run(transactionDate);
+            log.info("Data exported by node {}", nodeId);
         } catch (Exception e) {
-            log.error("Failed to export/reset data", e);
+            log.error("Failed to export data", e);
         } finally {
-            running.set(false);
+            pipelineControlService.finishExport(nodeId);
         }
     }
 }
