@@ -11,7 +11,7 @@ public class ManagementIndexDto {
     private String corporateNumber;
     private String financeMergeKey;
     private String mergeKey;
-    private String period;
+    private int period;
     private Long netSalesSummaryOfBusinessResults;
     private String netSalesSummaryOfBusinessResultsUnitRef;
     private Long operatingRevenue1SummaryOfBusinessResults;
