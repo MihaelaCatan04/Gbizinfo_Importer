@@ -8,6 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -23,9 +25,14 @@ public class JobSchedulerService {
     @Value("${node.id}")
     private String nodeId;
 
-    private LocalDate transactionDate;
+    @Value("${jobs.export.not-before}")
+    private LocalTime exportNotBefore;
 
-    public JobSchedulerService(DataImporter importer, ExportCoordinator exportCoordinator, PipelineControlService pipelineControlService) {
+    public JobSchedulerService(
+            DataImporter importer,
+            ExportCoordinator exportCoordinator,
+            PipelineControlService pipelineControlService
+    ) {
         this.importer = importer;
         this.exportCoordinator = exportCoordinator;
         this.pipelineControlService = pipelineControlService;
@@ -37,44 +44,47 @@ public class JobSchedulerService {
             return;
         }
 
+        LocalDate transactionDate = LocalDate.now();
+
         try {
-            transactionDate = LocalDate.now();
             if (DataSource.LOCAL.equals(dataSource)) {
                 importer.importFromLocalFolder(transactionDate);
             } else if (DataSource.REMOTE.equals(dataSource)) {
                 importer.importDataRemote(transactionDate);
             } else {
                 log.error("Invalid data source: {}", dataSource);
+                pipelineControlService.markImportFailure(nodeId);
+                return;
             }
-        } catch (Exception e) {
-            log.error("Failed to import data", e);
-        } finally {
-            pipelineControlService.finishImport(nodeId);
-        }
-    }
 
-    @Scheduled(cron = "${jobs.export.cron}")
-    public void requestExportTick() {
-        pipelineControlService.requestExport();
+            pipelineControlService.markImportSuccess(nodeId, transactionDate);
+
+        } catch (Exception e) {
+            log.error("Failed to import data for date {}", transactionDate, e);
+            pipelineControlService.markImportFailure(nodeId);
+        }
     }
 
     @Scheduled(fixedDelayString = "${jobs.orchestrator.delay}")
     public void runOrchestratorTick() {
-        if (!pipelineControlService.isExportRequested()) {
+        if (LocalTime.now().isBefore(exportNotBefore)) {
             return;
         }
 
-        if (!pipelineControlService.tryStartExport(nodeId)) {
+        Optional<LocalDate> transactionDateOpt = pipelineControlService.tryStartExport(nodeId);
+        if (transactionDateOpt.isEmpty()) {
             return;
         }
+
+        LocalDate transactionDate = transactionDateOpt.get();
 
         try {
             exportCoordinator.run(transactionDate);
-            log.info("Data exported by node {}", nodeId);
-        } catch (Exception e) {
-            log.error("Failed to export data", e);
-        } finally {
+            log.info("Data exported by node {} for date {}", nodeId, transactionDate);
             pipelineControlService.finishExport(nodeId);
+        } catch (Exception e) {
+            log.error("Failed to export data for date {}", transactionDate, e);
+            pipelineControlService.markExportFailure(nodeId);
         }
     }
 }
