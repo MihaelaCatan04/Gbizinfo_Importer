@@ -18,7 +18,7 @@ public class Subsidy {
     private String title;
 
     @JsonProperty("amount")
-    private String amount;
+    private Long amount;
 
     @JsonProperty("target")
     private String target;
@@ -27,6 +27,6 @@ public class Subsidy {
     private String governmentDepartments;
 
     public String subsidyMergeKey() {
-        return mergeKeyOrNull(normDate(String.valueOf(this.dateOfApproval)), normText(this.title), normText(this.amount), normText(this.target), normText(this.governmentDepartments));
+        return mergeKeyOrNull(normDate(String.valueOf(this.dateOfApproval)), normText(this.title), normLong(this.amount), normText(this.target), normText(this.governmentDepartments));
     }
 }

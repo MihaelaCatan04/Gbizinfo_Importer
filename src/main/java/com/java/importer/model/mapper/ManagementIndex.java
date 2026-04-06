@@ -10,7 +10,7 @@ import static com.java.importer.util.HashUtil.*;
 @Getter
 public class ManagementIndex {
     @JsonProperty("period")
-    private String period;
+    private int period;
 
     @JsonProperty("net_sales_summary_of_business_results")
     private Long netSalesSummaryOfBusinessResults;
@@ -85,6 +85,6 @@ public class ManagementIndex {
     private String numberOfEmployeesUnitRef;
 
     public String managementIndexMergeKey() {
-        return mergeKeyOrNull(normText(this.period), normLong(this.netSalesSummaryOfBusinessResults), normText(this.netSalesSummaryOfBusinessResultsUnitRef), normLong(this.operatingRevenue1SummaryOfBusinessResults), normText(this.operatingRevenue1SummaryOfBusinessResultsUnitRef), normLong(this.operatingRevenue2SummaryOfBusinessResults), normText(this.operatingRevenue1SummaryOfBusinessResultsUnitRef), normLong(this.grossOperatingRevenueSummaryOfBusinessResults), normText(this.grossOperatingRevenueSummaryOfBusinessResultsUnitRef), normLong(this.ordinaryIncomeSummaryOfBusinessResults), normText(this.ordinaryIncomeSummaryOfBusinessResultsUnitRef), normLong(this.netPremiumsWrittenSummaryOfBusinessResultIns), normText(this.netPremiumsWrittenSummaryOfBusinessResultsInsUnitRef), normLong(this.ordinaryIncomeLossSummaryOfBusinessResults), normText(this.ordinaryIncomeSummaryOfBusinessResultsUnitRef), normLong(this.netIncomeLossSummaryOfBusinessResults), normText(this.netIncomeLossSummaryOfBusinessResultsUnitRef), normLong(this.capitalStockSummaryOfBusinessResults), normText(this.capitalStockSummaryOfBusinessResultsUnitRef), normLong(this.netAssetsSummaryOfBusinessResults), normText(this.netAssetsSummaryOfBusinessResultsUnitRef), normLong(this.totalAssetsSummaryOfBusinessResults), normText(this.totalAssetsSummaryOfBusinessResultsUnitRef), normLong(this.numberOfEmployees), normText(this.numberOfEmployeesUnitRef));
+        return mergeKeyOrNull(normInt(this.period), normLong(this.netSalesSummaryOfBusinessResults), normText(this.netSalesSummaryOfBusinessResultsUnitRef), normLong(this.operatingRevenue1SummaryOfBusinessResults), normText(this.operatingRevenue1SummaryOfBusinessResultsUnitRef), normLong(this.operatingRevenue2SummaryOfBusinessResults), normText(this.operatingRevenue1SummaryOfBusinessResultsUnitRef), normLong(this.grossOperatingRevenueSummaryOfBusinessResults), normText(this.grossOperatingRevenueSummaryOfBusinessResultsUnitRef), normLong(this.ordinaryIncomeSummaryOfBusinessResults), normText(this.ordinaryIncomeSummaryOfBusinessResultsUnitRef), normLong(this.netPremiumsWrittenSummaryOfBusinessResultIns), normText(this.netPremiumsWrittenSummaryOfBusinessResultsInsUnitRef), normLong(this.ordinaryIncomeLossSummaryOfBusinessResults), normText(this.ordinaryIncomeSummaryOfBusinessResultsUnitRef), normLong(this.netIncomeLossSummaryOfBusinessResults), normText(this.netIncomeLossSummaryOfBusinessResultsUnitRef), normLong(this.capitalStockSummaryOfBusinessResults), normText(this.capitalStockSummaryOfBusinessResultsUnitRef), normLong(this.netAssetsSummaryOfBusinessResults), normText(this.netAssetsSummaryOfBusinessResultsUnitRef), normLong(this.totalAssetsSummaryOfBusinessResults), normText(this.totalAssetsSummaryOfBusinessResultsUnitRef), normLong(this.numberOfEmployees), normText(this.numberOfEmployeesUnitRef));
     }
 }
