@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static com.java.importer.util.HashUtil.*;
@@ -18,7 +19,7 @@ public class Patent {
     private String registrationNumber;
 
     @JsonProperty("application_date")
-    private String applicationDate;
+    private LocalDate applicationDate;
 
     @JsonProperty("classifications")
     private List<Classifications> classifications;
@@ -30,6 +31,6 @@ public class Patent {
     private String url;
 
     public String patentMergeKey() {
-        return mergeKeyOrNull(normText(this.patentType), normText(this.registrationNumber), normDate(this.applicationDate), normText(this.title), normText(this.url));
+        return mergeKeyOrNull(normText(this.patentType), normText(this.registrationNumber), normDate(String.valueOf(this.applicationDate)), normText(this.title), normText(this.url));
     }
 }

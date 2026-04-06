@@ -33,11 +33,9 @@ public class BatchPayloadCollector {
 
     private static <T> TopicBatchRequest<T> build(List<String> corporateNumbers, Map<String, List<T>> source) {
         List<CompanySnapshot<T>> companies = new ArrayList<>();
-
         for (String corporateNumber : corporateNumbers) {
             companies.add(new CompanySnapshot<>(corporateNumber, source.getOrDefault(corporateNumber, List.of())));
         }
-
         return new TopicBatchRequest<>(companies);
     }
 
@@ -101,6 +99,27 @@ public class BatchPayloadCollector {
         workplaceInfos.computeIfAbsent(corporateNumber, k -> new ArrayList<>()).add(dto);
     }
 
+    public void registerPatentKey(String patentMergeKey, String corporateNumber) {
+        if (!patentKeys.contains(patentMergeKey)) {
+            patentKeys.add(patentMergeKey);
+            corporateNumberByPatentKey.put(patentMergeKey, corporateNumber);
+        }
+    }
+
+    public void registerFinanceKeyForShareholders(String financeMergeKey, String corporateNumber) {
+        if (!financeKeysForShareholders.contains(financeMergeKey)) {
+            financeKeysForShareholders.add(financeMergeKey);
+            corporateNumberByFinanceKey.put(financeMergeKey, corporateNumber);
+        }
+    }
+
+    public void registerFinanceKeyForManagementIndexes(String financeMergeKey, String corporateNumber) {
+        if (!financeKeysForManagementIndexes.contains(financeMergeKey)) {
+            financeKeysForManagementIndexes.add(financeMergeKey);
+            corporateNumberByFinanceKey.putIfAbsent(financeMergeKey, corporateNumber);
+        }
+    }
+
     public TopicBatchRequest<CompanyDto> companyRequest(List<String> corporateNumbers) {
         return build(corporateNumbers, companies);
     }
@@ -111,36 +130,6 @@ public class BatchPayloadCollector {
 
     public TopicBatchRequest<FinanceDto> financeRequest(List<String> corporateNumbers) {
         return build(corporateNumbers, finances);
-    }
-
-    public MajorShareholderBatchRequest majorShareholderRequest() {
-        List<FinanceMajorShareholderSnapshot> financeSnapshots = new ArrayList<>();
-
-        for (String financeMergeKey : financeKeysForShareholders) {
-            String corporateNumber = corporateNumberByFinanceKey.get(financeMergeKey);
-            financeSnapshots.add(new FinanceMajorShareholderSnapshot(
-                    corporateNumber,
-                    financeMergeKey,
-                    shareholdersByFinance.getOrDefault(financeMergeKey, List.of())
-            ));
-        }
-
-        return new MajorShareholderBatchRequest(financeSnapshots);
-    }
-
-    public ManagementIndexBatchRequest managementIndexRequest() {
-        List<FinanceManagementIndexSnapshot> financeSnapshots = new ArrayList<>();
-
-        for (String financeMergeKey : financeKeysForManagementIndexes) {
-            String corporateNumber = corporateNumberByFinanceKey.get(financeMergeKey);
-            financeSnapshots.add(new FinanceManagementIndexSnapshot(
-                    corporateNumber,
-                    financeMergeKey,
-                    managementIndexesByFinance.getOrDefault(financeMergeKey, List.of())
-            ));
-        }
-
-        return new ManagementIndexBatchRequest(financeSnapshots);
     }
 
     public TopicBatchRequest<CommendationDto> commendationRequest(List<String> corporateNumbers) {
@@ -179,39 +168,30 @@ public class BatchPayloadCollector {
         return build(corporateNumbers, workplaceInfos);
     }
 
-    public void registerPatentKey(String patentMergeKey, String corporateNumber) {
-        if (!patentKeys.contains(patentMergeKey)) {
-            patentKeys.add(patentMergeKey);
-            corporateNumberByPatentKey.put(patentMergeKey, corporateNumber);
-        }
-    }
-
-    public void registerFinanceKeyForShareholders(String financeMergeKey, String corporateNumber) {
-        if (!financeKeysForShareholders.contains(financeMergeKey)) {
-            financeKeysForShareholders.add(financeMergeKey);
-            corporateNumberByFinanceKey.put(financeMergeKey, corporateNumber);
-        }
-    }
-
-    public void registerFinanceKeyForManagementIndexes(String financeMergeKey, String corporateNumber) {
-        if (!financeKeysForManagementIndexes.contains(financeMergeKey)) {
-            financeKeysForManagementIndexes.add(financeMergeKey);
-            corporateNumberByFinanceKey.putIfAbsent(financeMergeKey, corporateNumber);
-        }
-    }
-
-    public ClassificationBatchRequest classificationRequest() {
-        List<PatentClassificationSnapshot> patentSnapshots = new ArrayList<>();
-
+    public NestedBatchRequest<PatentClassificationSnapshot> classificationRequest() {
+        List<PatentClassificationSnapshot> snapshots = new ArrayList<>();
         for (String patentMergeKey : patentKeys) {
             String corporateNumber = corporateNumberByPatentKey.get(patentMergeKey);
-            patentSnapshots.add(new PatentClassificationSnapshot(
-                    corporateNumber,
-                    patentMergeKey,
-                    classificationsByPatent.getOrDefault(patentMergeKey, List.of())
-            ));
+            snapshots.add(new PatentClassificationSnapshot(corporateNumber, patentMergeKey, classificationsByPatent.getOrDefault(patentMergeKey, List.of())));
         }
+        return new NestedBatchRequest<>(snapshots);
+    }
 
-        return new ClassificationBatchRequest(patentSnapshots);
+    public NestedBatchRequest<FinanceMajorShareholderSnapshot> majorShareholderRequest() {
+        List<FinanceMajorShareholderSnapshot> snapshots = new ArrayList<>();
+        for (String financeMergeKey : financeKeysForShareholders) {
+            String corporateNumber = corporateNumberByFinanceKey.get(financeMergeKey);
+            snapshots.add(new FinanceMajorShareholderSnapshot(corporateNumber, financeMergeKey, shareholdersByFinance.getOrDefault(financeMergeKey, List.of())));
+        }
+        return new NestedBatchRequest<>(snapshots);
+    }
+
+    public NestedBatchRequest<FinanceManagementIndexSnapshot> managementIndexRequest() {
+        List<FinanceManagementIndexSnapshot> snapshots = new ArrayList<>();
+        for (String financeMergeKey : financeKeysForManagementIndexes) {
+            String corporateNumber = corporateNumberByFinanceKey.get(financeMergeKey);
+            snapshots.add(new FinanceManagementIndexSnapshot(corporateNumber, financeMergeKey, managementIndexesByFinance.getOrDefault(financeMergeKey, List.of())));
+        }
+        return new NestedBatchRequest<>(snapshots);
     }
 }

@@ -1,6 +1,8 @@
 package com.java.importer.client;
 
-import com.java.importer.model.export.*;
+import com.java.importer.model.export.EntityType;
+import com.java.importer.model.export.NestedBatchRequest;
+import com.java.importer.model.export.TopicBatchRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -18,15 +20,7 @@ public class WarehouseClient {
         restClient.post().uri(type.getEndpoint()).body(request).retrieve().toBodilessEntity();
     }
 
-    public void postClassificationBatch(ClassificationBatchRequest request) {
-        restClient.post().uri(EntityType.CLASSIFICATION.getEndpoint()).body(request).retrieve().toBodilessEntity();
-    }
-
-    public void postMajorShareholderBatch(MajorShareholderBatchRequest request) {
-        restClient.post().uri(EntityType.MAJOR_SHAREHOLDER.getEndpoint()).body(request).retrieve().toBodilessEntity();
-    }
-
-    public void postManagementIndexBatch(ManagementIndexBatchRequest request) {
-        restClient.post().uri(EntityType.MANAGEMENT_INDEX.getEndpoint()).body(request).retrieve().toBodilessEntity();
+    public void postNestedBatch(EntityType type, NestedBatchRequest<?> request) {
+        restClient.post().uri(type.getEndpoint()).body(request).retrieve().toBodilessEntity();
     }
 }

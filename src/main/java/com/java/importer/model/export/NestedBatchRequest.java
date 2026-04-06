@@ -7,10 +7,10 @@ import lombok.Setter;
 
 import java.util.List;
 
-@Setter
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ClassificationBatchRequest {
-    private List<PatentClassificationSnapshot> patents;
+public class NestedBatchRequest<S> {
+    private List<S> snapshots;
 }

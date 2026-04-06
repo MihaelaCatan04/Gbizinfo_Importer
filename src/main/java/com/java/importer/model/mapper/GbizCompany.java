@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Setter
@@ -40,7 +41,7 @@ public class GbizCompany {
     private String status;
 
     @JsonProperty("close_date")
-    private String closeDate;
+    private LocalDate closeDate;
 
     @JsonProperty("close_cause")
     private String closeCause;
@@ -73,7 +74,7 @@ public class GbizCompany {
     private Integer foundingYear;
 
     @JsonProperty("date_of_establishment")
-    private String dateOfEstablishment;
+    private LocalDate dateOfEstablishment;
 
     @JsonProperty("qualification_grade")
     private String qualificationGrade;

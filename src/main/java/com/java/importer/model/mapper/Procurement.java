@@ -4,13 +4,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
+
 import static com.java.importer.util.HashUtil.*;
 
 @Setter
 @Getter
 public class Procurement {
     @JsonProperty("date_of_order")
-    private String dateOfOrder;
+    private OffsetDateTime dateOfOrder;
 
     @JsonProperty("title")
     private String title;
@@ -25,6 +27,6 @@ public class Procurement {
     private String note;
 
     public String procurementMergeKey() {
-        return mergeKeyOrNull(normTimestamp(this.dateOfOrder), normText(this.title), normLong(this.amount), normText(this.governmentDepartments), normText(this.note));
+        return mergeKeyOrNull(normTimestamp(String.valueOf(this.dateOfOrder)), normText(this.title), normLong(this.amount), normText(this.governmentDepartments), normText(this.note));
     }
 }

@@ -4,13 +4,15 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
+
 @Getter
 @Setter
 @AllArgsConstructor
 public class ProcurementDto {
     private String corporateNumber;
     private String mergeKey;
-    private String dateOfOrder;
+    private OffsetDateTime dateOfOrder;
     private String title;
     private Long amount;
     private String governmentDepartments;

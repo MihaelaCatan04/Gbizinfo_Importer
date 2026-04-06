@@ -98,10 +98,7 @@ public class ExportWorker {
     private void postInfo(BatchPayloadCollector collector, List<String> successful) {
         warehouseClient.postBatch(EntityType.COMPANY, collector.companyRequest(successful));
         warehouseClient.postBatch(EntityType.PATENT, collector.patentRequest(successful));
-        warehouseClient.postClassificationBatch(collector.classificationRequest());
         warehouseClient.postBatch(EntityType.FINANCE, collector.financeRequest(successful));
-        warehouseClient.postMajorShareholderBatch(collector.majorShareholderRequest());
-        warehouseClient.postManagementIndexBatch(collector.managementIndexRequest());
         warehouseClient.postBatch(EntityType.COMMENDATION, collector.commendationRequest(successful));
         warehouseClient.postBatch(EntityType.CERTIFICATION, collector.certificationRequest(successful));
         warehouseClient.postBatch(EntityType.SUBSIDY, collector.subsidyRequest(successful));
@@ -111,5 +108,8 @@ public class ExportWorker {
         warehouseClient.postBatch(EntityType.WOMEN_ACTIVITY, collector.womenActivityRequest(successful));
         warehouseClient.postBatch(EntityType.COMPATIBILITY, collector.compatibilityRequest(successful));
         warehouseClient.postBatch(EntityType.WORKPLACE_INFO, collector.workplaceInfoRequest(successful));
+        warehouseClient.postNestedBatch(EntityType.CLASSIFICATION, collector.classificationRequest());
+        warehouseClient.postNestedBatch(EntityType.MAJOR_SHAREHOLDER, collector.majorShareholderRequest());
+        warehouseClient.postNestedBatch(EntityType.MANAGEMENT_INDEX, collector.managementIndexRequest());
     }
 }

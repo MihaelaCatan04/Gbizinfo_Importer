@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -17,7 +19,7 @@ public class CompanyDto {
     private String process;
     private String aggregatedYear;
     private String status;
-    private String closeDate;
+    private LocalDate closeDate;
     private String closeCause;
     private String kind;
     private String representativeName;
@@ -28,7 +30,7 @@ public class CompanyDto {
     private String businessSummary;
     private String companyUrl;
     private Integer foundingYear;
-    private String dateOfEstablishment;
+    private LocalDate dateOfEstablishment;
     private String qualificationGrade;
     private String updateDate;
     private String workplaceInfoMergeKey;
