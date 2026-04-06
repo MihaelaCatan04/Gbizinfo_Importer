@@ -32,6 +32,7 @@ CREATE TABLE pipeline_control
     pipeline_name    VARCHAR(20) PRIMARY KEY,
     phase            VARCHAR(20),
     export_requested BOOLEAN,
+    transaction_date DATE,
     owner_node       VARCHAR(100),
     lease_until      TIMESTAMP,
     updated_at       TIMESTAMPTZ

@@ -13,6 +13,7 @@ import java.util.List;
 @Setter
 @Getter
 public class FinanceMajorShareholderSnapshot {
+    private String corporateNumber;
     private String financeMergeKey;
     private List<MajorShareholderDto> shareholders;
 }

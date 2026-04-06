@@ -11,6 +11,7 @@
         <result property="ownerNode" column="owner_node"/>
         <result property="leaseUntil" column="lease_until"/>
         <result property="updatedAt" column="updated_at"/>
+        <result property="transactionDate" column="transaction_date"/>
     </resultMap>
 
     <select id="findMain" resultMap="PipelineControlMap">
@@ -19,7 +20,8 @@
                export_requested,
                owner_node,
                lease_until,
-               updated_at
+               updated_at,
+               transaction_date
         FROM pipeline_control
         WHERE pipeline_name = #{pipelineName}
     </select>
@@ -39,28 +41,20 @@
             )
     </update>
 
-    <update id="requestExport">
+    <update id="markImportSuccess">
         UPDATE pipeline_control
-        SET export_requested = true,
+        SET phase            = 'IDLE',
+            export_requested = true,
+            transaction_date = #{transactionDate},
+            owner_node       = null,
+            lease_until      = null,
             updated_at       = now()
         WHERE pipeline_name = #{pipelineName}
+          AND phase = 'IMPORTING'
+          AND owner_node = #{nodeId}
     </update>
 
-    <update id="tryStartExport">
-        UPDATE pipeline_control
-        SET phase       = 'EXPORTING',
-            owner_node  = #{nodeId},
-            lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-            updated_at  = now()
-        WHERE pipeline_name = #{pipelineName}
-          AND export_requested = true
-          AND (
-            phase = 'IDLE'
-                OR lease_until IS NULL
-                OR lease_until &lt; now()
-            )
-    </update>
-    <update id="finishImport">
+    <update id="markImportFailure">
         UPDATE pipeline_control
         SET phase       = 'IDLE',
             owner_node  = null,
@@ -71,13 +65,41 @@
           AND owner_node = #{nodeId}
     </update>
 
+    <update id="tryStartExport">
+        UPDATE pipeline_control
+        SET phase       = 'EXPORTING',
+            owner_node  = #{nodeId},
+            lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND export_requested = true
+          AND transaction_date IS NOT NULL
+          AND (
+            phase = 'IDLE'
+                OR lease_until IS NULL
+                OR lease_until &lt; now()
+            )
+    </update>
+
     <update id="finishExport">
         UPDATE pipeline_control
         SET phase            = 'IDLE',
             export_requested = false,
+            transaction_date = null,
             owner_node       = null,
             lease_until      = null,
             updated_at       = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'EXPORTING'
+          AND owner_node = #{nodeId}
+    </update>
+
+    <update id="markExportFailure">
+        UPDATE pipeline_control
+        SET phase       = 'IDLE',
+            owner_node  = null,
+            lease_until = null,
+            updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
           AND phase = 'EXPORTING'
           AND owner_node = #{nodeId}
@@ -100,4 +122,5 @@
           AND phase = 'EXPORTING'
           AND owner_node = #{nodeId}
     </update>
+
 </mapper>

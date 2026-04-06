@@ -13,6 +13,7 @@ import java.util.List;
 @Setter
 @Getter
 public class PatentClassificationSnapshot {
+    private String corporateNumber;
     private String patentMergeKey;
     private List<ClassificationDto> classifications;
 }

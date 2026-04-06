@@ -4,6 +4,7 @@ import com.java.importer.model.util.PipelinePhase;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Setter
@@ -12,6 +13,7 @@ public class PipelineControlDto {
     private String pipelineName;
     private PipelinePhase phase;
     private boolean exportRequested;
+    private LocalDate transactionDate;
     private String ownerNode;
     private OffsetDateTime leaseUntil;
     private OffsetDateTime updatedAt;

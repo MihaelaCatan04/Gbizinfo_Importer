@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class FinanceManagementIndexSnapshot {
+    private String corporateNumber;
     private String financeMergeKey;
     private List<ManagementIndexDto> managementIndexes;
 }

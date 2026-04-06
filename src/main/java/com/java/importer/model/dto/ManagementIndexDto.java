@@ -8,6 +8,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class ManagementIndexDto {
+    private String corporateNumber;
     private String financeMergeKey;
     private String mergeKey;
     private String period;
