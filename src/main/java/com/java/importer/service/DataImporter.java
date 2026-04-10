@@ -1,6 +1,7 @@
 package com.java.importer.service;
 
 import com.java.importer.mapper.DataMapper;
+import com.java.importer.mapper.ImportFailureMapper;
 import com.java.importer.mapper.PrepMapper;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class DataImporter {
     private final DataMapper dataMapper;
     private final TransactionTemplate transactionTemplate;
     private final PipelineControlService pipelineControlService;
+    private final ImportFailureMapper importFailureMapper;
 
     @Value("${apiToken}")
     private String apiToken;
@@ -38,12 +40,15 @@ public class DataImporter {
     private String localPath;
     @Value("${node.id}")
     private String nodeId;
+    @Value("${importer.max-attempts}")
+    private int MAX_ATTEMPTS;
 
-    public DataImporter(PrepMapper prepMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate, PipelineControlService pipelineControlService) {
+    public DataImporter(PrepMapper prepMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate, PipelineControlService pipelineControlService, ImportFailureMapper importFailureMapper) {
         this.prepMapper = prepMapper;
         this.dataMapper = dataMapper;
         this.transactionTemplate = transactionTemplate;
         this.pipelineControlService = pipelineControlService;
+        this.importFailureMapper = importFailureMapper;
     }
 
     public void importDataRemote(LocalDate transactionDate) throws Exception {
@@ -91,7 +96,7 @@ public class DataImporter {
                 if (!pipelineControlService.renewImportLease(nodeId)) {
                     throw new IllegalStateException("Import lease lost for node " + nodeId);
                 }
-                if (checkAlreadyExists(name, transactionDate)) {
+                if (shouldSkipEntry(name, transactionDate)) {
                     return;
                 }
                 try (var inputStream = Files.newInputStream(file)) {
@@ -99,10 +104,10 @@ public class DataImporter {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                setCheckpoint(name, transactionDate);
+                handleEntrySuccess(name, transactionDate);
             });
         } catch (Exception e) {
-            log.error("Failed on {}, rolling back", name, e);
+            handleEntryFailure(name, transactionDate, e);
         }
     }
 
@@ -112,7 +117,7 @@ public class DataImporter {
                 if (!pipelineControlService.renewImportLease(nodeId)) {
                     throw new IllegalStateException("Import lease lost for node " + nodeId);
                 }
-                if (checkAlreadyExists(name, transactionDate)) {
+                if (shouldSkipEntry(name, transactionDate)) {
                     return;
                 }
                 try {
@@ -120,10 +125,10 @@ public class DataImporter {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                setCheckpoint(name, transactionDate);
+                handleEntrySuccess(name, transactionDate);
             });
         } catch (Exception e) {
-            log.error("Failed on {}, rolling back", name, e);
+            handleEntryFailure(name, transactionDate, e);
         }
     }
 
@@ -197,5 +202,29 @@ public class DataImporter {
             body = new String(http.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
         }
         throw new IOException("Unexpected HTTP status " + status + ": " + body);
+    }
+
+    private boolean shouldSkipEntry(String name, LocalDate transactionDate) {
+        if (checkAlreadyExists(name, transactionDate)) {
+            return true;
+        }
+        int attempts = importFailureMapper.getFailureCount(name, transactionDate);
+        if (attempts >= MAX_ATTEMPTS) {
+            log.warn("Entry {} has failed {} times, skipping permanently", name, attempts);
+            return true;
+        }
+        return false;
+    }
+
+    private void handleEntryFailure(String name, LocalDate transactionDate, Exception e) {
+        String error = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+        importFailureMapper.recordFailure(name, transactionDate, error);
+        int attempts = importFailureMapper.getFailureCount(name, transactionDate);
+        log.error("Failed on {} (attempt {}/{}), rolling back", name, attempts, MAX_ATTEMPTS, e);
+    }
+
+    private void handleEntrySuccess(String name, LocalDate transactionDate) {
+        setCheckpoint(name, transactionDate);
+        importFailureMapper.deleteFailure(name, transactionDate);
     }
 }
