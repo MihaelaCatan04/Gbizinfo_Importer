@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -51,14 +52,22 @@ public class DataImporter {
 
     private void executeRemoteImport(LocalDate transactionDate) throws Exception {
         HttpURLConnection http = openConnection();
-        sendRequestParams(http);
-        validateResponse(http);
-        try (ZipInputStream zip = new ZipInputStream(http.getInputStream(), StandardCharsets.UTF_8)) {
-            processZipInputStream(zip, transactionDate);
+        try {
+            sendRequestParams(http);
+            validateResponse(http);
+            processResponse(http, transactionDate);
         } finally {
             http.disconnect();
         }
     }
+
+    private void processResponse(HttpURLConnection http, LocalDate transactionDate) throws IOException {
+        try (InputStream in = http.getInputStream();
+             ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
+            processZipInputStream(zip, transactionDate);
+        }
+    }
+
 
     public void importFromLocalFolder(LocalDate transactionDate) throws Exception {
         Path folder = validateLocalFolder();
