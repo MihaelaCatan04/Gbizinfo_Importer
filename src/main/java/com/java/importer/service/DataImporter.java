@@ -41,7 +41,7 @@ public class DataImporter {
     @Value("${node.id}")
     private String nodeId;
     @Value("${importer.max-attempts}")
-    private int MAX_ATTEMPTS;
+    private int maxAttempts;
 
     public DataImporter(PrepMapper prepMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate, PipelineControlService pipelineControlService, ImportFailureMapper importFailureMapper) {
         this.prepMapper = prepMapper;
@@ -209,7 +209,7 @@ public class DataImporter {
             return true;
         }
         int attempts = importFailureMapper.getFailureCount(name, transactionDate);
-        if (attempts >= MAX_ATTEMPTS) {
+        if (attempts >= maxAttempts) {
             log.warn("Entry {} has failed {} times, skipping permanently", name, attempts);
             return true;
         }
@@ -220,7 +220,7 @@ public class DataImporter {
         String error = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
         importFailureMapper.recordFailure(name, transactionDate, error);
         int attempts = importFailureMapper.getFailureCount(name, transactionDate);
-        log.error("Failed on {} (attempt {}/{}), rolling back", name, attempts, MAX_ATTEMPTS, e);
+        log.error("Failed on {} (attempt {}/{}), rolling back", name, attempts, maxAttempts, e);
     }
 
     private void handleEntrySuccess(String name, LocalDate transactionDate) {
