@@ -189,7 +189,7 @@ public class DataImporter {
 
     private void validateResponse(HttpURLConnection http) throws IOException {
         int status = http.getResponseCode();
-        if (status == HttpURLConnection.HTTP_OK) {
+        if (status >= 200 && status < 300) {
             return;
         }
         String body = "";
