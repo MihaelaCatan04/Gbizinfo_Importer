@@ -52,6 +52,7 @@ public class DataImporter {
     private void executeRemoteImport(LocalDate transactionDate) throws Exception {
         HttpURLConnection http = openConnection();
         sendRequestParams(http);
+        validateResponse(http);
         try (ZipInputStream zip = new ZipInputStream(http.getInputStream(), StandardCharsets.UTF_8)) {
             processZipInputStream(zip, transactionDate);
         } finally {
@@ -175,5 +176,17 @@ public class DataImporter {
 
     private void sendRequestParams(HttpURLConnection http) throws IOException {
         http.getOutputStream().write(String.format(PARAMS_TEMPLATE, apiToken).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void validateResponse(HttpURLConnection http) throws IOException {
+        int status = http.getResponseCode();
+        if (status == HttpURLConnection.HTTP_OK) {
+            return;
+        }
+        String body = "";
+        if (http.getErrorStream() != null) {
+            body = new String(http.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+        }
+        throw new IOException("Unexpected HTTP status " + status + ": " + body);
     }
 }
