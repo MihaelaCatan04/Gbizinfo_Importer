@@ -87,10 +87,30 @@ public class DataImporter {
                 try (var inputStream = Files.newInputStream(file)) {
                     dataMapper.copy(inputStream, transactionDate);
                 } catch (IOException e) {
-                    log.error("Exception ", e);
+                    throw new RuntimeException(e);
                 }
                 setCheckpoint(name, transactionDate);
+            });
+        } catch (Exception e) {
+            log.error("Failed on {}, rolling back", name, e);
+        }
+    }
 
+    private void processZipEntry(ZipInputStream zip, String name, LocalDate transactionDate) {
+        try {
+            transactionTemplate.executeWithoutResult(status -> {
+                if (!pipelineControlService.renewImportLease(nodeId)) {
+                    throw new IllegalStateException("Import lease lost for node " + nodeId);
+                }
+                if (checkAlreadyExists(name, transactionDate)) {
+                    return;
+                }
+                try {
+                    dataMapper.copy(zip, transactionDate);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                setCheckpoint(name, transactionDate);
             });
         } catch (Exception e) {
             log.error("Failed on {}, rolling back", name, e);
@@ -112,7 +132,10 @@ public class DataImporter {
 
     private List<Path> listJsonFiles(Path folder) throws IOException {
         try (var stream = Files.list(folder)) {
-            return stream.filter(path -> path.getFileName().toString().endsWith(".json")).sorted(Comparator.comparing(path -> path.getFileName().toString())).toList();
+            return stream
+                    .filter(path -> path.getFileName().toString().endsWith(".json"))
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .toList();
         }
     }
 
@@ -133,28 +156,10 @@ public class DataImporter {
                     log.warn("Skipping non-JSON entry: {}", name);
                     continue;
                 }
-
                 processZipEntry(zip, name, transactionDate);
             } finally {
                 zip.closeEntry();
             }
-        }
-    }
-
-    private void processZipEntry(ZipInputStream zip, String name, LocalDate transactionDate) {
-        try {
-            transactionTemplate.executeWithoutResult(status -> {
-                if (!pipelineControlService.renewImportLease(nodeId)) {
-                    throw new IllegalStateException("Import lease lost for node " + nodeId);
-                }
-                if (checkAlreadyExists(name, transactionDate)) {
-                    return;
-                }
-                dataMapper.copy(zip, transactionDate);
-                setCheckpoint(name, transactionDate);
-            });
-        } catch (Exception e) {
-            log.error("Failed on {}, rolling back", name, e);
         }
     }
 
