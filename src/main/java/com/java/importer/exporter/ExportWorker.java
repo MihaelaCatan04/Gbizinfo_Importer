@@ -4,7 +4,6 @@ import com.java.importer.client.WarehouseClient;
 import com.java.importer.mapper.CompanyEntryMapper;
 import com.java.importer.mapper.ExportJobMapper;
 import com.java.importer.model.export.BatchPayloadCollector;
-import com.java.importer.model.export.EntityType;
 import com.java.importer.service.CompanyPreparer;
 import com.java.importer.service.PipelineControlService;
 import lombok.extern.log4j.Log4j2;
@@ -96,20 +95,7 @@ public class ExportWorker {
     }
 
     private void postInfo(BatchPayloadCollector collector, List<String> successful) {
-        warehouseClient.postBatch(EntityType.COMPANY, collector.companyRequest(successful));
-        warehouseClient.postBatch(EntityType.PATENT, collector.patentRequest(successful));
-        warehouseClient.postBatch(EntityType.FINANCE, collector.financeRequest(successful));
-        warehouseClient.postBatch(EntityType.COMMENDATION, collector.commendationRequest(successful));
-        warehouseClient.postBatch(EntityType.CERTIFICATION, collector.certificationRequest(successful));
-        warehouseClient.postBatch(EntityType.SUBSIDY, collector.subsidyRequest(successful));
-        warehouseClient.postBatch(EntityType.PROCUREMENT, collector.procurementRequest(successful));
-        warehouseClient.postBatch(EntityType.ITEM_INFO, collector.itemInfoRequest(successful));
-        warehouseClient.postBatch(EntityType.BASE_INFO, collector.baseInfoRequest(successful));
-        warehouseClient.postBatch(EntityType.WOMEN_ACTIVITY, collector.womenActivityRequest(successful));
-        warehouseClient.postBatch(EntityType.COMPATIBILITY, collector.compatibilityRequest(successful));
-        warehouseClient.postBatch(EntityType.WORKPLACE_INFO, collector.workplaceInfoRequest(successful));
-        warehouseClient.postNestedBatch(EntityType.CLASSIFICATION, collector.classificationRequest());
-        warehouseClient.postNestedBatch(EntityType.MAJOR_SHAREHOLDER, collector.majorShareholderRequest());
-        warehouseClient.postNestedBatch(EntityType.MANAGEMENT_INDEX, collector.managementIndexRequest());
+        collector.postFlat(successful, warehouseClient);
+        collector.postNested(warehouseClient);
     }
 }

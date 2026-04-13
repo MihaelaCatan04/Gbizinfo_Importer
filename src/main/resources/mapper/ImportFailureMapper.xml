@@ -13,14 +13,18 @@
     </insert>
 
     <select id="getFailureCount" resultType="int">
-        SELECT attempts
-        FROM import_failures
-        WHERE entry_name = #{entryName}
-          AND transaction_date = #{transactionDate}
+        SELECT COALESCE(
+                       (SELECT attempts
+                        FROM import_failures
+                        WHERE entry_name = #{entryName}
+                          AND transaction_date = #{transactionDate}),
+                       0
+               )
     </select>
 
     <delete id="deleteFailure">
-        DELETE FROM import_failures
+        DELETE
+        FROM import_failures
         WHERE entry_name = #{entryName}
           AND transaction_date = #{transactionDate}
     </delete>

@@ -1,5 +1,6 @@
 package com.java.importer.model.export;
 
+import com.java.importer.client.WarehouseClient;
 import com.java.importer.model.dto.*;
 
 import java.util.ArrayList;
@@ -193,5 +194,26 @@ public class BatchPayloadCollector {
             snapshots.add(new FinanceManagementIndexSnapshot(corporateNumber, financeMergeKey, managementIndexesByFinance.getOrDefault(financeMergeKey, List.of())));
         }
         return new NestedBatchRequest<>(snapshots);
+    }
+
+    public void postFlat(List<String> successful, WarehouseClient client) {
+        client.postBatch(EntityType.COMPANY, companyRequest(successful));
+        client.postBatch(EntityType.PATENT, patentRequest(successful));
+        client.postBatch(EntityType.FINANCE, financeRequest(successful));
+        client.postBatch(EntityType.COMMENDATION, commendationRequest(successful));
+        client.postBatch(EntityType.CERTIFICATION, certificationRequest(successful));
+        client.postBatch(EntityType.SUBSIDY, subsidyRequest(successful));
+        client.postBatch(EntityType.PROCUREMENT, procurementRequest(successful));
+        client.postBatch(EntityType.ITEM_INFO, itemInfoRequest(successful));
+        client.postBatch(EntityType.BASE_INFO, baseInfoRequest(successful));
+        client.postBatch(EntityType.WOMEN_ACTIVITY, womenActivityRequest(successful));
+        client.postBatch(EntityType.COMPATIBILITY, compatibilityRequest(successful));
+        client.postBatch(EntityType.WORKPLACE_INFO, workplaceInfoRequest(successful));
+    }
+
+    public void postNested(WarehouseClient client) {
+        client.postNestedBatch(EntityType.CLASSIFICATION, classificationRequest());
+        client.postNestedBatch(EntityType.MAJOR_SHAREHOLDER, majorShareholderRequest());
+        client.postNestedBatch(EntityType.MANAGEMENT_INDEX, managementIndexRequest());
     }
 }
