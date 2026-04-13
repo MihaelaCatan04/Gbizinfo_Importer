@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java.importer.mapper.ImportFailureMapper">
+
+    <insert id="recordFailure">
+        INSERT INTO import_failures (entry_name, transaction_date, attempts, last_error, last_attempted_at)
+        VALUES (#{entryName}, #{transactionDate}, 1, #{lastError}, now())
+        ON CONFLICT (entry_name, transaction_date) DO UPDATE
+            SET attempts          = import_failures.attempts + 1,
+                last_error        = #{lastError},
+                last_attempted_at = now()
+    </insert>
+
+    <select id="getFailureCount" resultType="int">
+        SELECT attempts
+        FROM import_failures
+        WHERE entry_name = #{entryName}
+          AND transaction_date = #{transactionDate}
+    </select>
+
+    <delete id="deleteFailure">
+        DELETE FROM import_failures
+        WHERE entry_name = #{entryName}
+          AND transaction_date = #{transactionDate}
+    </delete>
+
+</mapper>

@@ -50,3 +50,13 @@ values ('MAIN',
         null,
         null,
         now());
+
+CREATE TABLE import_failures
+(
+    entry_name        VARCHAR(255) NOT NULL,
+    transaction_date  DATE         NOT NULL,
+    attempts          INT          NOT NULL DEFAULT 1,
+    last_error        TEXT,
+    last_attempted_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (entry_name, transaction_date)
+);
