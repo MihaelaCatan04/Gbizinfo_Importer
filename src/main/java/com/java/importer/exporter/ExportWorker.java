@@ -91,8 +91,13 @@ public class ExportWorker {
     }
 
     private void finalizeBatch(String instanceId, BatchPayloadCollector collector, List<String> successful, LocalDate checkpointDate) {
-        collector.postFlat(successful, warehouseClient);
-        collector.postNested(warehouseClient);
+        try {
+            collector.postFlat(successful, warehouseClient);
+            collector.postNested(warehouseClient);
+        } catch (Exception e) {
+            log.error("Warehouse post failed for batch, will be retried", e);
+            return;
+        }
         successful.forEach(cn -> exportJobMapper.markDone(checkpointDate, cn, instanceId));
     }
 }
