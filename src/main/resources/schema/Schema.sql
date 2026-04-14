@@ -14,8 +14,6 @@ CREATE TABLE company_entry
     inserted_at      TIMESTAMP   NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_raw_company_corporate_number ON company_entry (corporate_number);
-
 CREATE TABLE export_job
 (
     checkpoint_date  DATE        NOT NULL,

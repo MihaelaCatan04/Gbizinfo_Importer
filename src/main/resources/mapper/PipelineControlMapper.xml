@@ -66,7 +66,7 @@
           AND owner_node = #{nodeId}
     </update>
 
-    <update id="tryStartExport">
+    <select id="tryStartExport" affectData="true" resultType="java.time.LocalDate">
         UPDATE pipeline_control
         SET phase       = 'EXPORTING',
             owner_node  = #{nodeId},
@@ -81,7 +81,7 @@
                 OR lease_until &lt; now()
             )
         RETURNING transaction_date
-    </update>
+    </select>
 
     <update id="finishExport">
         UPDATE pipeline_control
