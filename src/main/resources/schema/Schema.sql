@@ -61,3 +61,6 @@ CREATE TABLE import_failures
     last_attempted_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
     PRIMARY KEY (entry_name, transaction_date)
 );
+
+CREATE INDEX idx_company_entry_checkpoint_corporate
+    ON company_entry (checkpoint_date, corporate_number);

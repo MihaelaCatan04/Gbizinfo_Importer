@@ -6,5 +6,6 @@
         SELECT entry::text
         FROM company_entry
         WHERE corporate_number = #{corporateNumber}
+          AND checkpoint_date = #{checkpointDate}
     </select>
 </mapper>
