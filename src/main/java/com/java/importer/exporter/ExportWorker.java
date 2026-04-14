@@ -30,6 +30,12 @@ public class ExportWorker {
     @Value("${node.id}")
     String nodeId;
 
+    @Value("${pipeline.export.lease.seconds:300}")
+    int exportLeaseSeconds;
+
+    @Value("${exporter.max-attempts:3}")
+    int maxAttempts;
+
     public ExportWorker(ExportJobMapper exportJobMapper, CompanyPreparer companyPreparer, WarehouseClient warehouseClient, CompanyEntryMapper companyEntryMapper, PipelineControlService pipelineControlService) {
         this.exportJobMapper = exportJobMapper;
         this.companyPreparer = companyPreparer;
@@ -45,57 +51,45 @@ public class ExportWorker {
                 log.info("No more companies to process, instance {} done", instanceId);
                 break;
             }
-            processBatch(batch, checkpointDate);
+            processBatch(instanceId, batch, checkpointDate);
         }
     }
 
     private List<String> claimBatch(String instanceId, LocalDate checkpointDate) {
-        List<String> batch = exportJobMapper.claimBatch(instanceId, batchSize, checkpointDate);
+        List<String> batch = exportJobMapper.claimBatch(instanceId, batchSize, checkpointDate, exportLeaseSeconds, maxAttempts);
         log.info("Claimed batch of {} companies", batch.size());
-
         if (!pipelineControlService.renewExportLease(nodeId)) {
             throw new IllegalStateException("Export lease lost for node " + nodeId);
         }
-
         return batch;
     }
 
-    private void processBatch(List<String> batch, LocalDate checkpointDate) {
+    private void processBatch(String instanceId, List<String> batch, LocalDate checkpointDate) {
         BatchPayloadCollector collector = new BatchPayloadCollector();
         List<String> successful = new ArrayList<>();
-
         for (String corporateNumber : batch) {
-            if (processCompany(corporateNumber, checkpointDate, collector)) {
+            if (processCompany(instanceId, corporateNumber, checkpointDate, collector)) {
                 successful.add(corporateNumber);
             }
         }
-
-        finalizeBatch(collector, successful, checkpointDate);
+        finalizeBatch(instanceId, collector, successful, checkpointDate);
     }
 
-    private boolean processCompany(String corporateNumber, LocalDate checkpointDate, BatchPayloadCollector collector) {
+    private boolean processCompany(String instanceId, String corporateNumber, LocalDate checkpointDate, BatchPayloadCollector collector) {
         try {
-            mapInfo(corporateNumber, checkpointDate, collector);
+            String raw = companyEntryMapper.findRawByCorporateNumber(checkpointDate, corporateNumber);
+            companyPreparer.mapInto(corporateNumber, raw, collector);
             return true;
         } catch (Exception e) {
             log.error("Failed to parse {}, marking failed", corporateNumber, e);
-            exportJobMapper.markFailed(checkpointDate, corporateNumber);
+            exportJobMapper.markFailed(checkpointDate, corporateNumber, instanceId);
             return false;
         }
     }
 
-    private void finalizeBatch(BatchPayloadCollector collector, List<String> successful, LocalDate checkpointDate) {
-        postInfo(collector, successful);
-        successful.forEach(corporateNumber -> exportJobMapper.markDone(checkpointDate, corporateNumber));
-    }
-
-    private void mapInfo(String corporateNumber, LocalDate checkpointDate, BatchPayloadCollector collector) throws Exception {
-        String raw = companyEntryMapper.findRawByCorporateNumber(checkpointDate, corporateNumber);
-        companyPreparer.mapInto(corporateNumber, raw, collector);
-    }
-
-    private void postInfo(BatchPayloadCollector collector, List<String> successful) {
+    private void finalizeBatch(String instanceId, BatchPayloadCollector collector, List<String> successful, LocalDate checkpointDate) {
         collector.postFlat(successful, warehouseClient);
         collector.postNested(warehouseClient);
+        successful.forEach(cn -> exportJobMapper.markDone(checkpointDate, cn, instanceId));
     }
 }
