@@ -19,6 +19,7 @@
                              status = 'pending'
                                  OR (status = 'processing'
                                  AND claimed_at &lt; now() - (#{leaseSeconds} || ' seconds')::interval)
+                                 OR status = 'failed'
                              )
                          LIMIT #{batchSize} FOR UPDATE SKIP LOCKED)
         UPDATE export_job
