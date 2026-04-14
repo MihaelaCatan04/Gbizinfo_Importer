@@ -10,32 +10,19 @@ import java.time.LocalDate;
 public interface PipelineControlMapper {
     PipelineControlDto findMain(@Param("pipelineName") String pipelineName);
 
-    int tryStartImport(@Param("pipelineName") String pipelineName,
-                       @Param("nodeId") String nodeId,
-                       @Param("leaseSeconds") int leaseSeconds);
+    int tryStartImport(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId, @Param("leaseSeconds") int leaseSeconds);
 
-    int markImportSuccess(@Param("pipelineName") String pipelineName,
-                          @Param("nodeId") String nodeId,
-                          @Param("transactionDate") LocalDate transactionDate);
+    int markImportSuccess(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId, @Param("transactionDate") LocalDate transactionDate);
 
-    int markImportFailure(@Param("pipelineName") String pipelineName,
-                          @Param("nodeId") String nodeId);
+    int markImportFailure(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId);
 
-    int tryStartExport(@Param("pipelineName") String pipelineName,
-                       @Param("nodeId") String nodeId,
-                       @Param("leaseSeconds") int leaseSeconds);
+    LocalDate tryStartExport(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId, @Param("leaseSeconds") int leaseSeconds);
 
-    int finishExport(@Param("pipelineName") String pipelineName,
-                     @Param("nodeId") String nodeId);
+    int finishExport(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId);
 
-    int markExportFailure(@Param("pipelineName") String pipelineName,
-                          @Param("nodeId") String nodeId);
+    int markExportFailure(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId);
 
-    int renewImportLease(@Param("pipelineName") String pipelineName,
-                         @Param("nodeId") String nodeId,
-                         @Param("leaseSeconds") int leaseSeconds);
+    int renewImportLease(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId, @Param("leaseSeconds") int leaseSeconds);
 
-    int renewExportLease(@Param("pipelineName") String pipelineName,
-                         @Param("nodeId") String nodeId,
-                         @Param("leaseSeconds") int leaseSeconds);
+    int renewExportLease(@Param("pipelineName") String pipelineName, @Param("nodeId") String nodeId, @Param("leaseSeconds") int leaseSeconds);
 }

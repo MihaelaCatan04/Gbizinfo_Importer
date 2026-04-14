@@ -1,7 +1,6 @@
 package com.java.importer.service;
 
 import com.java.importer.mapper.PipelineControlMapper;
-import com.java.importer.model.dto.PipelineControlDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -58,19 +57,14 @@ public class PipelineControlService {
     }
 
     public Optional<LocalDate> tryStartExport(String nodeId) {
-        int updated = pipelineControlMapper.tryStartExport(PIPELINE_NAME, nodeId, exportLeaseSeconds);
-        if (updated != 1) {
+
+        LocalDate transactionDate = pipelineControlMapper.tryStartExport(PIPELINE_NAME, nodeId, exportLeaseSeconds);
+        if (transactionDate == null) {
             return Optional.empty();
         }
 
-        PipelineControlDto state = pipelineControlMapper.findMain(PIPELINE_NAME);
-        if (state == null || !state.isExportRequested() || state.getTransactionDate() == null) {
-            log.warn("Node {} acquired EXPORTING but no transaction_date was found", nodeId);
-            return Optional.empty();
-        }
-
-        log.info("Node {} acquired EXPORTING phase for transaction date {}", nodeId, state.getTransactionDate());
-        return Optional.of(state.getTransactionDate());
+        log.info("Node {} acquired EXPORTING phase for transaction date {}", nodeId, transactionDate);
+        return Optional.of(transactionDate);
     }
 
     public void finishExport(String nodeId) {

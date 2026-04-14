@@ -38,6 +38,7 @@
             phase = 'IDLE'
                 OR lease_until IS NULL
                 OR lease_until &lt; now()
+                OR owner_node = #{nodeId}
             )
     </update>
 
@@ -79,6 +80,7 @@
                 OR lease_until IS NULL
                 OR lease_until &lt; now()
             )
+        RETURNING transaction_date
     </update>
 
     <update id="finishExport">
