@@ -68,6 +68,9 @@ public class ExportWorker {
         BatchPayloadCollector collector = new BatchPayloadCollector();
         List<String> successful = new ArrayList<>();
         for (String corporateNumber : batch) {
+            if (!pipelineControlService.renewExportLease(nodeId)) {
+                throw new IllegalStateException("Export lease lost during batch processing for node " + nodeId);
+            }
             if (processCompany(instanceId, corporateNumber, checkpointDate, collector)) {
                 successful.add(corporateNumber);
             }
