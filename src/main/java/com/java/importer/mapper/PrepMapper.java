@@ -9,7 +9,7 @@ import java.time.LocalDate;
 public interface PrepMapper {
     void clearDataTables();
 
-    int getEntryCount(@Param("name") String name, @Param("transaction_date") LocalDate transaction_date);
+    int getEntryCount(@Param("name") String name, @Param("transaction_date") LocalDate transactionDate);
 
-    int setCheckpoint(@Param("name") String name, @Param("transaction_date") LocalDate transaction_date);
+    int setCheckpoint(@Param("name") String name, @Param("transaction_date") LocalDate transactionDate);
 }
