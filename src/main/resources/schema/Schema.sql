@@ -24,6 +24,7 @@ CREATE TABLE export_job
     claimed_by       VARCHAR(255),
     claimed_at       TIMESTAMPTZ,
     completed_at     TIMESTAMPTZ,
+    attempt_count    INT         NOT NULL DEFAULT 0,
     PRIMARY KEY (checkpoint_date, corporate_number)
 );
 

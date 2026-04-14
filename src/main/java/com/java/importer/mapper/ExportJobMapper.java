@@ -1,6 +1,7 @@
 package com.java.importer.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -9,9 +10,9 @@ import java.util.List;
 public interface ExportJobMapper {
     void populate(LocalDate checkpointDate);
 
-    List<String> claimBatch(String instanceId, int batchSize, LocalDate checkpointDate);
+    List<String> claimBatch(@Param("instanceId") String instanceId, @Param("batchSize") int batchSize, @Param("checkpointDate") LocalDate checkpointDate, @Param("leaseSeconds") int leaseSeconds, @Param("maxAttempts") int maxAttempts);
 
-    void markDone(LocalDate checkpointDate, String corporateNumber);
+    void markDone(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("instanceId") String instanceId);
 
-    void markFailed(LocalDate checkpointDate, String corporateNumber);
+    void markFailed(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("instanceId") String instanceId);
 }
