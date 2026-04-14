@@ -67,8 +67,7 @@ public class DataImporter {
     }
 
     private void processResponse(HttpURLConnection http, LocalDate transactionDate) throws IOException {
-        try (InputStream in = http.getInputStream();
-             ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
+        try (InputStream in = http.getInputStream(); ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
             processZipInputStream(zip, transactionDate);
         }
     }
@@ -147,10 +146,7 @@ public class DataImporter {
 
     private List<Path> listJsonFiles(Path folder) throws IOException {
         try (var stream = Files.list(folder)) {
-            return stream
-                    .filter(path -> path.getFileName().toString().endsWith(".json"))
-                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
-                    .toList();
+            return stream.filter(path -> path.getFileName().toString().endsWith(".json")).sorted(Comparator.comparing(path -> path.getFileName().toString())).toList();
         }
     }
 
@@ -218,9 +214,13 @@ public class DataImporter {
 
     private void handleEntryFailure(String name, LocalDate transactionDate, Exception e) {
         String error = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
-        importFailureMapper.recordFailure(name, transactionDate, error);
-        int attempts = importFailureMapper.getFailureCount(name, transactionDate);
-        log.error("Failed on {} (attempt {}/{}), rolling back", name, attempts, maxAttempts, e);
+        try {
+            importFailureMapper.recordFailure(name, transactionDate, error);
+            int attempts = importFailureMapper.getFailureCount(name, transactionDate);
+            log.error("Failed on {} (attempt {}/{}), rolling back", name, attempts, maxAttempts, e);
+        } catch (Exception recordingEx) {
+            log.error("Failed to record failure for entry {}, it will be retried next run", name, recordingEx);
+        }
     }
 
     private void handleEntrySuccess(String name, LocalDate transactionDate) {
