@@ -24,7 +24,7 @@ public class Finance {
     @JsonProperty("major_shareholders")
     private List<MajorShareholders> majorShareholders;
 
-    public String financeMergeKey() {
-        return mergeKeyOrNull(normText(this.accountingStandards), normText(this.fiscalYearCoverPage));
+    public String financeMergeKey(String corporateNumber) {
+        return mergeKeyOrNull(normText(corporateNumber),normText(this.accountingStandards), normText(this.fiscalYearCoverPage));
     }
 }

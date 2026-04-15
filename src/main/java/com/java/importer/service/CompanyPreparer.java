@@ -57,7 +57,7 @@ public final class CompanyPreparer {
 
     private void mapPatents(GbizCompany company, String corporateNumber, BatchPayloadCollector collector) {
         forEachIfPresent(company.getPatent(), patent -> {
-            String patentMergeKey = patent.patentMergeKey();
+            String patentMergeKey = patent.patentMergeKey(corporateNumber);
             if (patentMergeKey == null) return;
 
             collector.registerPatentKey(patentMergeKey, corporateNumber);
@@ -88,7 +88,7 @@ public final class CompanyPreparer {
 
     private void mapFinances(GbizCompany company, String corporateNumber, BatchPayloadCollector collector) {
         forEachIfPresent(company.getFinance(), finance -> {
-            String financeMergeKey = finance.financeMergeKey();
+            String financeMergeKey = finance.financeMergeKey(corporateNumber);
             if (financeMergeKey == null) return;
 
             collector.addFinance(corporateNumber, new FinanceDto(
