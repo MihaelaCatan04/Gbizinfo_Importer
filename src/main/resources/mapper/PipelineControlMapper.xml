@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.java.importer.mapper.PipelineControlMapper">
+
+    <resultMap id="PipelineControlMap" type="com.java.importer.model.dto.PipelineControlDto">
+        <result property="pipelineName" column="pipeline_name"/>
+        <result property="phase" column="phase"/>
+        <result property="exportRequested" column="export_requested"/>
+        <result property="ownerNode" column="owner_node"/>
+        <result property="leaseUntil" column="lease_until"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="transactionDate" column="transaction_date"/>
+    </resultMap>
+
+    <select id="findMain" resultMap="PipelineControlMap">
+        SELECT pipeline_name,
+               phase,
+               export_requested,
+               owner_node,
+               lease_until,
+               updated_at,
+               transaction_date
+        FROM pipeline_control
+        WHERE pipeline_name = #{pipelineName}
+    </select>
+
+    <update id="tryStartImport">
+        UPDATE pipeline_control
+        SET phase       = 'IMPORTING',
+            owner_node  = #{nodeId},
+            lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND export_requested = false
+          AND (
+            phase = 'IDLE'
+                OR lease_until IS NULL
+                OR lease_until &lt; now()
+                OR owner_node = #{nodeId}
+            )
+    </update>
+
+    <update id="markImportSuccess">
+        UPDATE pipeline_control
+        SET phase            = 'IDLE',
+            export_requested = true,
+            transaction_date = #{transactionDate},
+            owner_node       = null,
+            lease_until      = null,
+            updated_at       = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'IMPORTING'
+          AND owner_node = #{nodeId}
+    </update>
+
+    <update id="markImportFailure">
+        UPDATE pipeline_control
+        SET phase       = 'IDLE',
+            owner_node  = null,
+            lease_until = null,
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'IMPORTING'
+          AND owner_node = #{nodeId}
+    </update>
+
+    <select id="tryStartExport" affectData="true" resultType="java.time.LocalDate">
+        UPDATE pipeline_control
+        SET phase       = 'EXPORTING',
+            owner_node  = #{nodeId},
+            lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND export_requested = true
+          AND transaction_date IS NOT NULL
+          AND (
+            phase = 'IDLE'
+                OR lease_until IS NULL
+                OR lease_until &lt; now()
+            )
+        RETURNING transaction_date
+    </select>
+
+    <update id="finishExport">
+        UPDATE pipeline_control
+        SET phase            = 'IDLE',
+            export_requested = false,
+            transaction_date = null,
+            owner_node       = null,
+            lease_until      = null,
+            updated_at       = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'EXPORTING'
+          AND owner_node = #{nodeId}
+    </update>
+
+    <update id="markExportFailure">
+        UPDATE pipeline_control
+        SET phase       = 'IDLE',
+            owner_node  = null,
+            lease_until = null,
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'EXPORTING'
+          AND owner_node = #{nodeId}
+    </update>
+
+    <update id="renewImportLease">
+        UPDATE pipeline_control
+        SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'IMPORTING'
+          AND owner_node = #{nodeId}
+    </update>
+
+    <update id="renewExportLease">
+        UPDATE pipeline_control
+        SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'EXPORTING'
+          AND owner_node = #{nodeId}
+    </update>
+
+</mapper>

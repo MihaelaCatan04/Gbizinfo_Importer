@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java.importer.mapper.CompanyEntryMapper">
+    <select id="findRawByCorporateNumber" resultType="String">
+        SELECT entry::text
+        FROM company_entry
+        WHERE corporate_number = #{corporateNumber}
+          AND checkpoint_date = #{checkpointDate}
+    </select>
+</mapper>
