@@ -65,8 +65,11 @@ public class ExportWorker {
     }
 
     private void processBatch(String instanceId, List<String> batch, LocalDate checkpointDate) {
+        long startTime = System.nanoTime();
+
         BatchPayloadCollector collector = new BatchPayloadCollector();
         List<String> successful = new ArrayList<>();
+
         for (String corporateNumber : batch) {
             if (!pipelineControlService.renewExportLease(nodeId)) {
                 throw new IllegalStateException("Export lease lost during batch processing for node " + nodeId);
@@ -75,7 +78,11 @@ public class ExportWorker {
                 successful.add(corporateNumber);
             }
         }
+
         finalizeBatch(instanceId, collector, successful, checkpointDate);
+
+        long durationMs = (System.nanoTime() - startTime) / 1_000_000;
+        log.info("Batch processed: {} items in {} ms", batch.size(), durationMs);
     }
 
     private boolean processCompany(String instanceId, String corporateNumber, LocalDate checkpointDate, BatchPayloadCollector collector) {
