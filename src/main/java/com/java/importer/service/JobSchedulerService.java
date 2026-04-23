@@ -28,11 +28,7 @@ public class JobSchedulerService {
     @Value("${jobs.export.not-before}")
     private LocalTime exportNotBefore;
 
-    public JobSchedulerService(
-            DataImporter importer,
-            ExportCoordinator exportCoordinator,
-            PipelineControlService pipelineControlService
-    ) {
+    public JobSchedulerService(DataImporter importer, ExportCoordinator exportCoordinator, PipelineControlService pipelineControlService) {
         this.importer = importer;
         this.exportCoordinator = exportCoordinator;
         this.pipelineControlService = pipelineControlService;
@@ -43,9 +39,7 @@ public class JobSchedulerService {
         if (!pipelineControlService.tryStartImport(nodeId)) {
             return;
         }
-
         LocalDate transactionDate = LocalDate.now();
-
         try {
             if (DataSource.LOCAL.equals(dataSource)) {
                 importer.importFromLocalFolder(transactionDate);
@@ -56,9 +50,7 @@ public class JobSchedulerService {
                 pipelineControlService.markImportFailure(nodeId);
                 return;
             }
-
             pipelineControlService.markImportSuccess(nodeId, transactionDate);
-
         } catch (Exception e) {
             log.error("Failed to import data for date {}", transactionDate, e);
             pipelineControlService.markImportFailure(nodeId);
@@ -71,20 +63,18 @@ public class JobSchedulerService {
             return;
         }
 
-        Optional<LocalDate> transactionDateOpt = pipelineControlService.tryStartExport(nodeId);
-        if (transactionDateOpt.isEmpty()) {
+        Optional<LocalDate> dateOpt = pipelineControlService.getExportDate();
+        if (dateOpt.isEmpty()) {
             return;
         }
 
-        LocalDate transactionDate = transactionDateOpt.get();
-
+        LocalDate transactionDate = dateOpt.get();
         try {
             exportCoordinator.run(transactionDate);
-            log.info("Data exported by node {} for date {}", nodeId, transactionDate);
-            pipelineControlService.finishExport(nodeId);
         } catch (Exception e) {
-            log.error("Failed to export data for date {}", transactionDate, e);
-            pipelineControlService.markExportFailure(nodeId);
+            log.error("Export batch failed on node {} for date {}", nodeId, transactionDate, e);
         }
+
+        pipelineControlService.finishExportIfComplete(transactionDate);
     }
 }
