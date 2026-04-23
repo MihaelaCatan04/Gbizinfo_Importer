@@ -32,7 +32,7 @@
             owner_node  = #{nodeId},
             lease_until = now() + (#{leaseSeconds} * interval '1 second'),
             updated_at  = now()
-        WHERE pipeline_name = #{pipelineName}
+        WHERE pipeline_name    = #{pipelineName}
           AND export_requested = false
           AND (
             phase = 'IDLE'
@@ -51,8 +51,8 @@
             lease_until      = null,
             updated_at       = now()
         WHERE pipeline_name = #{pipelineName}
-          AND phase = 'IMPORTING'
-          AND owner_node = #{nodeId}
+          AND phase         = 'IMPORTING'
+          AND owner_node    = #{nodeId}
     </update>
 
     <update id="markImportFailure">
@@ -62,49 +62,31 @@
             lease_until = null,
             updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
-          AND phase = 'IMPORTING'
-          AND owner_node = #{nodeId}
+          AND phase         = 'IMPORTING'
+          AND owner_node    = #{nodeId}
     </update>
 
-    <select id="tryStartExport" affectData="true" resultType="java.time.LocalDate">
-        UPDATE pipeline_control
-        SET phase       = 'EXPORTING',
-            owner_node  = #{nodeId},
-            lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-            updated_at  = now()
-        WHERE pipeline_name = #{pipelineName}
+    <select id="getExportDate" resultType="java.time.LocalDate">
+        SELECT transaction_date
+        FROM pipeline_control
+        WHERE pipeline_name    = #{pipelineName}
           AND export_requested = true
           AND transaction_date IS NOT NULL
-          AND (
-            phase = 'IDLE'
-                OR lease_until IS NULL
-                OR lease_until &lt; now()
-            )
-        RETURNING transaction_date
     </select>
 
-    <update id="finishExport">
+    <update id="finishExportIfComplete">
         UPDATE pipeline_control
         SET phase            = 'IDLE',
             export_requested = false,
             transaction_date = null,
-            owner_node       = null,
-            lease_until      = null,
             updated_at       = now()
-        WHERE pipeline_name = #{pipelineName}
-          AND phase = 'EXPORTING'
-          AND owner_node = #{nodeId}
-    </update>
-
-    <update id="markExportFailure">
-        UPDATE pipeline_control
-        SET phase       = 'IDLE',
-            owner_node  = null,
-            lease_until = null,
-            updated_at  = now()
-        WHERE pipeline_name = #{pipelineName}
-          AND phase = 'EXPORTING'
-          AND owner_node = #{nodeId}
+        WHERE pipeline_name    = #{pipelineName}
+          AND export_requested = true
+          AND NOT EXISTS (
+            SELECT 1 FROM export_job
+            WHERE checkpoint_date = #{transactionDate}
+              AND status NOT IN ('done', 'failed')
+        )
     </update>
 
     <update id="renewImportLease">
@@ -112,17 +94,8 @@
         SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
             updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
-          AND phase = 'IMPORTING'
-          AND owner_node = #{nodeId}
-    </update>
-
-    <update id="renewExportLease">
-        UPDATE pipeline_control
-        SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-            updated_at  = now()
-        WHERE pipeline_name = #{pipelineName}
-          AND phase = 'EXPORTING'
-          AND owner_node = #{nodeId}
+          AND phase         = 'IMPORTING'
+          AND owner_node    = #{nodeId}
     </update>
 
 </mapper>
