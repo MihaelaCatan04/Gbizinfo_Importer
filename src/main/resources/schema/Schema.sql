@@ -62,3 +62,6 @@ CREATE TABLE import_failures
 
 CREATE INDEX idx_company_entry_checkpoint_corporate
     ON company_entry (checkpoint_date, corporate_number);
+
+ALTER TABLE pipeline_control
+    ADD CONSTRAINT pipeline_control_pk PRIMARY KEY (pipeline_name);

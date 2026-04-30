@@ -14,58 +14,50 @@ public class PipelineControlService {
 
     private static final String PIPELINE_NAME = "MAIN";
 
-    private final PipelineControlMapper pipelineControlMapper;
+    private final PipelineControlMapper mapper;
 
     @Value("${pipeline.import.lease.seconds:120}")
-    private int importLeaseSeconds;
+    private int leaseSeconds;
 
-    public PipelineControlService(PipelineControlMapper pipelineControlMapper) {
-        this.pipelineControlMapper = pipelineControlMapper;
+    public PipelineControlService(PipelineControlMapper mapper) {
+        this.mapper = mapper;
+    }
+
+    public void ensurePipelineExists() {
+        mapper.insertInitial(PIPELINE_NAME);
     }
 
     public boolean tryStartImport(String nodeId) {
-        int updated = pipelineControlMapper.tryStartImport(PIPELINE_NAME, nodeId, importLeaseSeconds);
-        boolean success = updated == 1;
-        if (success) {
+        ensurePipelineExists();
+
+        int updated = mapper.tryStartImport(PIPELINE_NAME, nodeId, leaseSeconds);
+
+        if (updated == 1) {
             log.info("Node {} acquired IMPORTING phase", nodeId);
-        } else {
-            log.debug("Node {} could not acquire IMPORTING phase", nodeId);
+            return true;
         }
-        return success;
+
+        log.debug("Node {} could not acquire IMPORTING phase", nodeId);
+        return false;
     }
 
-    public void markImportSuccess(String nodeId, LocalDate transactionDate) {
-        int updated = pipelineControlMapper.markImportSuccess(PIPELINE_NAME, nodeId, transactionDate);
-        if (updated == 1) {
-            log.info("Node {} completed import, export requested for date {}", nodeId, transactionDate);
-        } else {
-            log.warn("Node {} could not mark import success for date {}", nodeId, transactionDate);
-        }
+    public void markImportSuccess(String nodeId, LocalDate date) {
+        mapper.markImportSuccess(PIPELINE_NAME, nodeId, date);
     }
 
     public void markImportFailure(String nodeId) {
-        int updated = pipelineControlMapper.markImportFailure(PIPELINE_NAME, nodeId);
-        if (updated == 1) {
-            log.info("Node {} released IMPORTING phase after failure", nodeId);
-        } else {
-            log.warn("Node {} could not release IMPORTING phase after failure", nodeId);
-        }
+        mapper.markImportFailure(PIPELINE_NAME, nodeId);
     }
 
     public boolean renewImportLease(String nodeId) {
-        int updated = pipelineControlMapper.renewImportLease(PIPELINE_NAME, nodeId, importLeaseSeconds);
-        return updated == 1;
+        return mapper.renewImportLease(PIPELINE_NAME, nodeId, leaseSeconds) == 1;
     }
 
     public Optional<LocalDate> getExportDate() {
-        LocalDate date = pipelineControlMapper.getExportDate(PIPELINE_NAME);
-        return Optional.ofNullable(date);
+        return Optional.ofNullable(mapper.getExportDate(PIPELINE_NAME));
     }
 
-    public void finishExportIfComplete(LocalDate transactionDate) {
-        int updated = pipelineControlMapper.finishExportIfComplete(PIPELINE_NAME, transactionDate);
-        if (updated == 1) {
-            log.info("All export jobs done for {}, pipeline reset to IDLE", transactionDate);
-        }
+    public void finishExportIfComplete(LocalDate date) {
+        mapper.finishExportIfComplete(PIPELINE_NAME, date);
     }
 }

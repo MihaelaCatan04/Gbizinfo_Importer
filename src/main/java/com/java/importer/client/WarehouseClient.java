@@ -12,7 +12,7 @@ public class WarehouseClient {
 
     private final RestClient restClient;
 
-    public WarehouseClient(@Value("${warehouse.base-url}") String baseUrl, @Value("${app.security.username}") String username, @Value("${app.security.password}") String password) {
+    public WarehouseClient(@Value("${warehouse.base-url}") String baseUrl, @Value("${exporter.security.username}") String username, @Value("${exporter.security.password}") String password) {
         this.restClient = RestClient.builder().baseUrl(baseUrl).defaultHeaders(headers -> {
             headers.setBasicAuth(username, password);
             headers.set("Content-Type", "application/json");
