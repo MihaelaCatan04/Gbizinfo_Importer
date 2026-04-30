@@ -1,35 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-
 <mapper namespace="com.java.importer.mapper.PipelineControlMapper">
 
-    <resultMap id="PipelineControlMap" type="com.java.importer.model.dto.PipelineControlDto">
-        <result property="pipelineName" column="pipeline_name"/>
-        <result property="phase" column="phase"/>
-        <result property="exportRequested" column="export_requested"/>
-        <result property="ownerNode" column="owner_node"/>
-        <result property="leaseUntil" column="lease_until"/>
-        <result property="updatedAt" column="updated_at"/>
-        <result property="transactionDate" column="transaction_date"/>
-    </resultMap>
-
-    <select id="findMain" resultMap="PipelineControlMap">
-        SELECT *
-        FROM pipeline_control
-        WHERE pipeline_name = #{pipelineName}
-    </select>
-
-    <!-- ✅ SAFE INIT -->
     <insert id="insertInitial">
-        INSERT INTO pipeline_control (pipeline_name,
-                                      phase,
-                                      export_requested,
-                                      updated_at)
-        VALUES (#{pipelineName},
-                'IDLE',
-                false,
-                now())
+        INSERT INTO pipeline_control (pipeline_name, phase, updated_at)
+        VALUES (#{pipelineName}, 'IDLE', now())
         ON CONFLICT (pipeline_name) DO NOTHING
     </insert>
 
@@ -40,22 +16,28 @@
             lease_until = now() + (#{leaseSeconds} * interval '1 second'),
             updated_at  = now()
         WHERE pipeline_name = #{pipelineName}
-          AND export_requested = false
           AND (
-            phase = 'IDLE'
-                OR lease_until IS NULL
-                OR lease_until &lt; now()
-                OR owner_node = #{nodeId}
+            (phase = 'IDLE')
+                OR
+            (phase = 'IMPORTING' AND lease_until IS NOT NULL AND lease_until &lt; now())
             )
+    </update>
+
+    <update id="renewImportLease">
+        UPDATE pipeline_control
+        SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
+            updated_at  = now()
+        WHERE pipeline_name = #{pipelineName}
+          AND phase = 'IMPORTING'
+          AND owner_node = #{nodeId}
     </update>
 
     <update id="markImportSuccess">
         UPDATE pipeline_control
-        SET phase            = 'IDLE',
-            export_requested = true,
-            transaction_date = #{transactionDate},
+        SET phase            = 'EXPORTING',
             owner_node       = null,
             lease_until      = null,
+            transaction_date = #{transactionDate},
             updated_at       = now()
         WHERE pipeline_name = #{pipelineName}
           AND phase = 'IMPORTING'
@@ -77,31 +59,21 @@
         SELECT transaction_date
         FROM pipeline_control
         WHERE pipeline_name = #{pipelineName}
-          AND export_requested = true
+          AND phase = 'EXPORTING'
           AND transaction_date IS NOT NULL
     </select>
 
     <update id="finishExportIfComplete">
         UPDATE pipeline_control
         SET phase            = 'IDLE',
-            export_requested = false,
             transaction_date = null,
             updated_at       = now()
         WHERE pipeline_name = #{pipelineName}
-          AND export_requested = true
+          AND phase = 'EXPORTING'
           AND NOT EXISTS (SELECT 1
                           FROM export_job
                           WHERE checkpoint_date = #{transactionDate}
                             AND status NOT IN ('done', 'failed'))
-    </update>
-
-    <update id="renewImportLease">
-        UPDATE pipeline_control
-        SET lease_until = now() + (#{leaseSeconds} * interval '1 second'),
-            updated_at  = now()
-        WHERE pipeline_name = #{pipelineName}
-          AND phase = 'IMPORTING'
-          AND owner_node = #{nodeId}
     </update>
 
 </mapper>

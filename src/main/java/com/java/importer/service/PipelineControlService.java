@@ -12,7 +12,7 @@ import java.util.Optional;
 @Service
 public class PipelineControlService {
 
-    private static final String PIPELINE_NAME = "MAIN";
+    private static final String PIPELINE = "MAIN";
 
     private final PipelineControlMapper mapper;
 
@@ -23,41 +23,35 @@ public class PipelineControlService {
         this.mapper = mapper;
     }
 
-    public void ensurePipelineExists() {
-        mapper.insertInitial(PIPELINE_NAME);
+    public boolean tryStartImport(String nodeId) {
+        mapper.insertInitial(PIPELINE);
+        boolean acquired = mapper.tryStartImport(PIPELINE, nodeId, leaseSeconds) == 1;
+        if (acquired) log.info("Node {} acquired IMPORTING phase", nodeId);
+        else log.debug("Node {} could not acquire IMPORTING phase", nodeId);
+        return acquired;
     }
 
-    public boolean tryStartImport(String nodeId) {
-        ensurePipelineExists();
-
-        int updated = mapper.tryStartImport(PIPELINE_NAME, nodeId, leaseSeconds);
-
-        if (updated == 1) {
-            log.info("Node {} acquired IMPORTING phase", nodeId);
-            return true;
-        }
-
-        log.debug("Node {} could not acquire IMPORTING phase", nodeId);
-        return false;
+    /**
+     * Returns false if the lease was stolen — caller must abort immediately.
+     */
+    public boolean renewImportLease(String nodeId) {
+        return mapper.renewImportLease(PIPELINE, nodeId, leaseSeconds) == 1;
     }
 
     public void markImportSuccess(String nodeId, LocalDate date) {
-        mapper.markImportSuccess(PIPELINE_NAME, nodeId, date);
+        mapper.markImportSuccess(PIPELINE, nodeId, date);
     }
 
     public void markImportFailure(String nodeId) {
-        mapper.markImportFailure(PIPELINE_NAME, nodeId);
-    }
-
-    public boolean renewImportLease(String nodeId) {
-        return mapper.renewImportLease(PIPELINE_NAME, nodeId, leaseSeconds) == 1;
+        mapper.markImportFailure(PIPELINE, nodeId);
     }
 
     public Optional<LocalDate> getExportDate() {
-        return Optional.ofNullable(mapper.getExportDate(PIPELINE_NAME));
+        return Optional.ofNullable(mapper.getExportDate(PIPELINE));
     }
 
     public void finishExportIfComplete(LocalDate date) {
-        mapper.finishExportIfComplete(PIPELINE_NAME, date);
+        int updated = mapper.finishExportIfComplete(PIPELINE, date);
+        if (updated == 1) log.info("Pipeline returned to IDLE after export of {}", date);
     }
 }

@@ -1,9 +1,9 @@
 package com.java.importer.service;
 
 import com.java.importer.mapper.DataMapper;
+import com.java.importer.mapper.ImportCheckpointMapper;
 import com.java.importer.mapper.ImportFailureMapper;
-import com.java.importer.mapper.PrepMapper;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -15,35 +15,32 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
-@Log4j2
+@Slf4j
 @Service
 public class DataImporter {
 
-    private final PrepMapper prepMapper;
+    private final ImportCheckpointMapper checkpointMapper;
+    private final ImportFailureMapper failureMapper;
     private final DataMapper dataMapper;
     private final TransactionTemplate transactionTemplate;
     private final PipelineControlService pipelineControlService;
-    private final ImportFailureMapper importFailureMapper;
 
     @Value("${node.id}")
     private String nodeId;
 
-    @Value("${importer.max-attempts}")
+    @Value("${importer.max-attempts:3}")
     private int maxAttempts;
 
-    public DataImporter(PrepMapper prepMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate, PipelineControlService pipelineControlService, ImportFailureMapper importFailureMapper) {
-        this.prepMapper = prepMapper;
+    public DataImporter(ImportCheckpointMapper checkpointMapper, ImportFailureMapper failureMapper, DataMapper dataMapper, TransactionTemplate transactionTemplate, PipelineControlService pipelineControlService) {
+        this.checkpointMapper = checkpointMapper;
+        this.failureMapper = failureMapper;
         this.dataMapper = dataMapper;
         this.transactionTemplate = transactionTemplate;
         this.pipelineControlService = pipelineControlService;
-        this.importFailureMapper = importFailureMapper;
     }
 
     public void importFromLocalFolder(LocalDate transactionDate, String folder) throws Exception {
-
-        Path folderPath = validateLocalFolder(folder);
-
-        List<Path> files = listJsonFiles(folderPath);
+        List<Path> files = listJsonFiles(validateFolder(folder));
 
         if (files.isEmpty()) {
             log.warn("No JSON files found in {}", folder);
@@ -60,7 +57,7 @@ public class DataImporter {
 
         try {
             if (!pipelineControlService.renewImportLease(nodeId)) {
-                throw new IllegalStateException("Lost import lease for node " + nodeId);
+                throw new LeaseRevokedException("Lost import lease for node " + nodeId);
             }
 
             if (shouldSkip(name, transactionDate)) {
@@ -73,26 +70,27 @@ public class DataImporter {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-
                 markSuccess(name, transactionDate);
             });
 
+        } catch (LeaseRevokedException e) {
+            throw e;
         } catch (Exception e) {
             handleFailure(name, transactionDate, e);
         }
     }
 
     private boolean shouldSkip(String name, LocalDate date) {
-
-        if (prepMapper.getEntryCount(name, date) > 0) {
-            log.info("Skipping already processed file {}", name);
+        if (checkpointMapper.getEntryCount(name, date) > 0) {
+            log.info("Skipping already-processed file: {}", name);
             return true;
         }
 
-        int attempts = importFailureMapper.getFailureCount(name, date);
+        Integer attempts = failureMapper.getFailureCount(name, date);
+        int failureCount = attempts != null ? attempts : 0;
 
-        if (attempts >= maxAttempts) {
-            log.warn("File {} exceeded max attempts ({}), skipping permanently", name, attempts);
+        if (failureCount >= maxAttempts) {
+            log.warn("File {} has exceeded max attempts ({}), skipping permanently", name, failureCount);
             return true;
         }
 
@@ -100,22 +98,17 @@ public class DataImporter {
     }
 
     private void markSuccess(String name, LocalDate date) {
-        prepMapper.setCheckpoint(name, date);
-        importFailureMapper.deleteFailure(name, date);
-        log.info("Processed successfully: {}", name);
+        checkpointMapper.setCheckpoint(name, date);
+        failureMapper.deleteFailure(name, date);
+        log.info("Imported successfully: {}", name);
     }
 
     private void handleFailure(String name, LocalDate date, Exception e) {
-
-        String error = (e.getMessage() != null) ? e.getMessage() : e.getClass().getSimpleName();
-
+        String error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
         try {
-            importFailureMapper.recordFailure(name, date, error);
-
-            int attempts = importFailureMapper.getFailureCount(name, date);
-
-            log.error("Failed {} (attempt {})", name, attempts, e);
-
+            failureMapper.recordFailure(name, date, error);
+            int attempts = failureMapper.getFailureCount(name, date);
+            log.error("Import failed for {} (attempt {})", name, attempts, e);
         } catch (Exception ex) {
             log.error("Could not record failure for {}", name, ex);
         }
@@ -127,13 +120,17 @@ public class DataImporter {
         }
     }
 
-    private Path validateLocalFolder(String folder) {
+    private Path validateFolder(String folder) {
         Path path = Path.of(folder);
-
         if (!Files.isDirectory(path)) {
             throw new IllegalArgumentException("Invalid folder: " + folder);
         }
-
         return path;
+    }
+
+    public static class LeaseRevokedException extends RuntimeException {
+        public LeaseRevokedException(String message) {
+            super(message);
+        }
     }
 }

@@ -8,11 +8,11 @@ import java.util.List;
 
 @Mapper
 public interface ExportJobMapper {
-    void populate(LocalDate checkpointDate);
+    void createJobsForDate(@Param("transactionDate") LocalDate transactionDate);
 
-    List<String> claimBatch(@Param("instanceId") String instanceId, @Param("batchSize") int batchSize, @Param("checkpointDate") LocalDate checkpointDate, @Param("leaseSeconds") int leaseSeconds, @Param("maxAttempts") int maxAttempts);
+    List<String> claimBatch(@Param("workerId") String workerId, @Param("batchSize") int batchSize, @Param("transactionDate") LocalDate transactionDate, @Param("leaseSeconds") int leaseSeconds, @Param("maxAttempts") int maxAttempts);
 
-    void markDone(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("instanceId") String instanceId);
+    int markJobDone(@Param("transactionDate") LocalDate transactionDate, @Param("corporateNumber") String corporateNumber, @Param("workerId") String workerId);
 
-    void markFailed(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("instanceId") String instanceId);
+    int markJobFailed(@Param("transactionDate") LocalDate transactionDate, @Param("corporateNumber") String corporateNumber, @Param("workerId") String workerId, @Param("error") String error);
 }

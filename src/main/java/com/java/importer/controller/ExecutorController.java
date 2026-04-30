@@ -1,5 +1,6 @@
 package com.java.importer.controller;
 
+import com.java.importer.model.request.TriggerRequest;
 import com.java.importer.service.ExecutorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,12 +21,14 @@ public class ExecutorController {
 
     @PostMapping("/trigger")
     @Operation(summary = "Trigger executor to read data from local folder and export it to Companyhouse")
-    public ResponseEntity<String> trigger(@RequestBody String folder) {
+    public ResponseEntity<String> trigger(@RequestBody TriggerRequest request) {
         try {
-            executorService.runImporter(folder);
-            return ResponseEntity.accepted().body("Import started for: " + folder);
+            executorService.runImporter(request.folder());
+            return ResponseEntity.ok("Import completed for: " + request.folder());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Import failed: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("Import failed: " + e.getMessage());
         }
     }
 }
