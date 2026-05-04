@@ -1,7 +1,7 @@
 CREATE TABLE pipeline_control
 (
     pipeline_name    VARCHAR PRIMARY KEY,
-    phase            VARCHAR   NOT NULL DEFAULT 'IDLE', -- IDLE | IMPORTING | EXPORTING
+    phase            VARCHAR   NOT NULL DEFAULT 'IDLE',
     owner_node       VARCHAR,
     lease_until      TIMESTAMP,
     transaction_date DATE,
@@ -55,4 +55,8 @@ CREATE TABLE export_job
     PRIMARY KEY (checkpoint_date, corporate_number)
 );
 
--- TODO: Add indexes
+CREATE INDEX idx_export_job_checkpoint_corporate
+    ON export_job (checkpoint_date, corporate_number);
+
+CREATE INDEX idx_export_job_checkpoint_corporate_claimed
+    ON export_job (checkpoint_date, corporate_number, claimed_by);
