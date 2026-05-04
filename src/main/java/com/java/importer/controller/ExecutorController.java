@@ -24,7 +24,7 @@ public class ExecutorController {
     public ResponseEntity<String> trigger(@RequestBody TriggerRequest request) {
         try {
             executorService.runImporter(request.folder());
-            return ResponseEntity.ok("Import completed for: " + request.folder());
+            return ResponseEntity.ok("Import triggered for: " + request.folder());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {

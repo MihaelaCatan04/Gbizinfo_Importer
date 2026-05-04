@@ -26,14 +26,14 @@ public class PipelineControlService {
     public boolean tryStartImport(String nodeId) {
         mapper.insertInitial(PIPELINE);
         boolean acquired = mapper.tryStartImport(PIPELINE, nodeId, leaseSeconds) == 1;
-        if (acquired) log.info("Node {} acquired IMPORTING phase", nodeId);
-        else log.debug("Node {} could not acquire IMPORTING phase", nodeId);
+        if (acquired) {
+            log.info("Node {} acquired IMPORTING phase", nodeId);
+        } else {
+            log.debug("Node {} could not acquire IMPORTING phase", nodeId);
+        }
         return acquired;
     }
 
-    /**
-     * Returns false if the lease was stolen — caller must abort immediately.
-     */
     public boolean renewImportLease(String nodeId) {
         return mapper.renewImportLease(PIPELINE, nodeId, leaseSeconds) == 1;
     }

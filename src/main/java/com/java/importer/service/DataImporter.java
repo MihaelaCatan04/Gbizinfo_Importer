@@ -56,22 +56,13 @@ public class DataImporter {
         String name = file.getFileName().toString();
 
         try {
-            if (!pipelineControlService.renewImportLease(nodeId)) {
-                throw new LeaseRevokedException("Lost import lease for node " + nodeId);
-            }
+            ensureLease();
 
             if (shouldSkip(name, transactionDate)) {
                 return;
             }
 
-            transactionTemplate.executeWithoutResult(status -> {
-                try (var inputStream = Files.newInputStream(file)) {
-                    dataMapper.copy(inputStream, transactionDate);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                markSuccess(name, transactionDate);
-            });
+            transactionTemplate.executeWithoutResult(status -> processTransaction(file, name, transactionDate));
 
         } catch (LeaseRevokedException e) {
             throw e;
@@ -79,6 +70,22 @@ public class DataImporter {
             handleFailure(name, transactionDate, e);
         }
     }
+
+    private void ensureLease() {
+        if (!pipelineControlService.renewImportLease(nodeId)) {
+            throw new LeaseRevokedException("Lost import lease for node " + nodeId);
+        }
+    }
+
+    private void processTransaction(Path file, String name, LocalDate transactionDate) {
+        try (var inputStream = Files.newInputStream(file)) {
+            dataMapper.copy(inputStream, transactionDate);
+            markSuccess(name, transactionDate);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     private boolean shouldSkip(String name, LocalDate date) {
         if (checkpointMapper.getEntryCount(name, date) > 0) {

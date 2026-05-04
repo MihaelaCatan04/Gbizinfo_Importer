@@ -39,7 +39,7 @@ public class ExportCoordinator {
     public void initExportJobs(LocalDate transactionDate, String nodeId) {
         pipelineControlService.markImportSuccess(nodeId, transactionDate);
         exportJobMapper.createJobsForDate(transactionDate);
-        log.info("Phase → EXPORTING, jobs seeded for {}", transactionDate);
+        log.info("Phase EXPORTING, jobs seeded for {}", transactionDate);
     }
 
     public void run(LocalDate transactionDate) {
