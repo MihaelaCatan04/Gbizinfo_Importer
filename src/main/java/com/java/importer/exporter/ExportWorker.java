@@ -4,12 +4,12 @@ import com.java.importer.client.WarehouseClient;
 import com.java.importer.mapper.CompanyEntryMapper;
 import com.java.importer.mapper.ExportJobMapper;
 import com.java.importer.model.export.BatchPayloadCollector;
+import com.java.importer.model.export.ExportJob;
 import com.java.importer.service.CompanyPreparer;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,68 +35,70 @@ public class ExportWorker {
         this.companyEntryMapper = companyEntryMapper;
     }
 
-    public void run(String workerId, LocalDate checkpointDate, int maxAttempts) {
+    public void run(String workerId, int maxAttempts) {
         while (true) {
-            List<String> batch = claimBatch(workerId, checkpointDate, maxAttempts);
+            List<ExportJob> batch = claimBatch(workerId, maxAttempts);
             if (batch.isEmpty()) {
                 log.info("Worker {} — no more companies to process", workerId);
                 break;
             }
-            processBatch(workerId, batch, checkpointDate);
+            processBatch(workerId, batch);
         }
     }
 
-    private List<String> claimBatch(String workerId, LocalDate checkpointDate, int maxAttempts) {
-        List<String> batch = exportJobMapper.claimBatch(workerId, batchSize, checkpointDate, exportLeaseSeconds, maxAttempts);
+    private List<ExportJob> claimBatch(String workerId, int maxAttempts) {
+        List<ExportJob> batch = exportJobMapper.claimBatch(workerId, batchSize, exportLeaseSeconds, maxAttempts);
         log.info("Worker {} claimed batch of {}", workerId, batch.size());
         return batch;
     }
 
-    private void processBatch(String workerId, List<String> batch, LocalDate checkpointDate) {
+    private void processBatch(String workerId, List<ExportJob> batch) {
         long startTime = System.nanoTime();
-
         BatchPayloadCollector collector = new BatchPayloadCollector();
-        List<String> successful = new ArrayList<>();
+        List<ExportJob> successful = new ArrayList<>();
 
-        for (String corporateNumber : batch) {
-            if (processCompany(workerId, corporateNumber, checkpointDate, collector)) {
-                successful.add(corporateNumber);
+        for (ExportJob job : batch) {
+            if (processCompany(workerId, job, collector)) {
+                successful.add(job);
             }
         }
 
-        finalizeBatch(workerId, collector, successful, checkpointDate);
+        finalizeBatch(workerId, collector, successful);
 
         long durationMs = (System.nanoTime() - startTime) / 1_000_000;
         log.info("Worker {} — batch done: {}/{} successful in {} ms", workerId, successful.size(), batch.size(), durationMs);
     }
 
-    private boolean processCompany(String workerId, String corporateNumber, LocalDate checkpointDate, BatchPayloadCollector collector) {
+    private boolean processCompany(String workerId, ExportJob job, BatchPayloadCollector collector) {
         try {
-            String raw = companyEntryMapper.findRawByCorporateNumber(checkpointDate, corporateNumber);
-            companyPreparer.mapInto(corporateNumber, raw, collector);
+            String raw = companyEntryMapper.findRawByCorporateNumber(job.getCheckpointDate(), job.getCorporateNumber());
+            companyPreparer.mapInto(job.getCorporateNumber(), raw, collector);
             return true;
         } catch (Exception e) {
-            log.error("Worker {} — failed to parse {}, marking failed", workerId, corporateNumber, e);
+            log.error("Worker {} — failed to parse {}, marking failed", workerId, job.getCorporateNumber(), e);
             String error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            exportJobMapper.markJobFailed(checkpointDate, corporateNumber, workerId, error);
+            exportJobMapper.markJobFailed(job.getCheckpointDate(), job.getCorporateNumber(), workerId, error);
             return false;
         }
     }
 
-    private void finalizeBatch(String workerId, BatchPayloadCollector collector, List<String> successful, LocalDate checkpointDate) {
+    private void finalizeBatch(String workerId, BatchPayloadCollector collector, List<ExportJob> successful) {
         if (successful.isEmpty()) {
             return;
         }
 
         try {
-            collector.postFlat(successful, warehouseClient);
+            List<String> corporateNumbers = successful.stream().map(ExportJob::getCorporateNumber).toList();
+            collector.postFlat(corporateNumbers, warehouseClient);
             collector.postNested(warehouseClient);
         } catch (Exception e) {
-            log.error("Worker {} — warehouse post failed, batch will be retried via lease expiry", workerId, e);
+            log.error("Worker {} — warehouse post failed, " + "batch retried via lease expiry", workerId, e);
             return;
         }
 
-        successful.forEach(cn -> exportJobMapper.markJobDone(checkpointDate, cn, workerId));
+        for (ExportJob job : successful) {
+            exportJobMapper.markJobDone(job.getCheckpointDate(), job.getCorporateNumber(), workerId);
+        }
         log.info("Worker {} — marked {} jobs done", workerId, successful.size());
     }
 }
