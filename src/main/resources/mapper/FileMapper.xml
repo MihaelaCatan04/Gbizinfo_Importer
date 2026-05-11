@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java.importer.mapper.FileMapper">
+
+    <select id="claimNextFile" resultType="com.java.importer.model.importer.ProcessedFile">
+        SELECT id, path, file_date
+        FROM processed_files
+        WHERE is_processed = FALSE
+        LIMIT 1 FOR UPDATE SKIP LOCKED
+    </select>
+
+    <update id="markFileDone">
+        UPDATE processed_files
+        SET is_processed = TRUE
+        WHERE id = #{id}
+    </update>
+
+    <select id="countUnprocessed" resultType="int">
+        SELECT COUNT(*)
+        FROM processed_files
+        WHERE is_processed = FALSE
+    </select>
+
+</mapper>

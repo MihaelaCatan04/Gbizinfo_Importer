@@ -7,10 +7,9 @@ import java.time.LocalDate;
 
 @Mapper
 public interface ImportFailureMapper {
+    Integer getFailureCount(@Param("entryName") String entryName, @Param("date") LocalDate date);
 
-    void recordFailure(@Param("entryName") String entryName, @Param("transactionDate") LocalDate transactionDate, @Param("lastError") String lastError);
+    void recordFailure(@Param("entryName") String entryName, @Param("date") LocalDate date, @Param("error") String error);
 
-    int getFailureCount(@Param("entryName") String entryName, @Param("transactionDate") LocalDate transactionDate);
-
-    void deleteFailure(@Param("entryName") String entryName, @Param("transactionDate") LocalDate transactionDate);
+    void deleteFailure(@Param("entryName") String entryName, @Param("date") LocalDate date);
 }

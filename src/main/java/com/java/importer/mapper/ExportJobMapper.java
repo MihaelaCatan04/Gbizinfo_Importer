@@ -1,5 +1,6 @@
 package com.java.importer.mapper;
 
+import com.java.importer.model.export.ExportJob;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -8,11 +9,12 @@ import java.util.List;
 
 @Mapper
 public interface ExportJobMapper {
-    void populate(LocalDate checkpointDate);
 
-    List<String> claimBatch(@Param("instanceId") String instanceId, @Param("batchSize") int batchSize, @Param("checkpointDate") LocalDate checkpointDate, @Param("leaseSeconds") int leaseSeconds, @Param("maxAttempts") int maxAttempts);
+    void createAllPendingJobs();
 
-    void markDone(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("instanceId") String instanceId);
+    List<ExportJob> claimBatch(@Param("workerId") String workerId, @Param("batchSize") int batchSize, @Param("leaseSeconds") int leaseSeconds, @Param("maxAttempts") int maxAttempts);
 
-    void markFailed(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("instanceId") String instanceId);
+    void markJobDone(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("workerId") String workerId);
+
+    void markJobFailed(@Param("checkpointDate") LocalDate checkpointDate, @Param("corporateNumber") String corporateNumber, @Param("workerId") String workerId, @Param("error") String error);
 }

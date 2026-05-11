@@ -2,51 +2,48 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.java.importer.mapper.ExportJobMapper">
-    <insert id="populate">
+
+    <insert id="createAllPendingJobs">
         INSERT INTO export_job (checkpoint_date, corporate_number)
-        SELECT checkpoint_date, corporate_number
+        SELECT DISTINCT checkpoint_date, corporate_number
         FROM company_entry
-        WHERE checkpoint_date = #{checkpointDate}
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (checkpoint_date, corporate_number) DO NOTHING
     </insert>
 
-    <select id="claimBatch" resultType="String">
-        WITH claimed AS (SELECT corporate_number
-                         FROM export_job
-                         WHERE checkpoint_date = #{checkpointDate}
-                           AND attempt_count &lt; #{maxAttempts}
-                           AND (
-                             status = 'pending'
-                                 OR (status = 'processing'
-                                 AND claimed_at &lt; now() - (#{leaseSeconds} || ' seconds')::interval)
-                                 OR status = 'failed'
-                             )
-                         LIMIT #{batchSize} FOR UPDATE SKIP LOCKED)
+    <select id="claimBatch" resultType="com.java.importer.model.export.ExportJob">
         UPDATE export_job
         SET status        = 'processing',
-            claimed_by    = #{instanceId},
-            claimed_at    = now(),
+            claimed_by    = #{workerId},
+            claimed_at    = NOW(),
+            locked_until  = NOW() + (#{leaseSeconds} * INTERVAL '1 second'),
             attempt_count = attempt_count + 1
-        FROM claimed
-        WHERE export_job.corporate_number = claimed.corporate_number
-          AND export_job.checkpoint_date = #{checkpointDate}
-        RETURNING export_job.corporate_number
+        WHERE (checkpoint_date, corporate_number) IN (SELECT checkpoint_date, corporate_number
+                                                      FROM export_job
+                                                      WHERE status = 'pending'
+                                                         OR (status = 'processing' AND locked_until &lt; NOW())
+                                                         OR (status = 'failed' AND attempt_count &lt; #{maxAttempts})
+                                                      ORDER BY corporate_number
+                                                      LIMIT #{batchSize} FOR UPDATE SKIP LOCKED)
+        RETURNING checkpoint_date, corporate_number
     </select>
 
-    <update id="markDone">
+    <update id="markJobDone">
         UPDATE export_job
         SET status       = 'done',
-            completed_at = now()
-        WHERE corporate_number = #{corporateNumber}
-          AND checkpoint_date = #{checkpointDate}
-          AND claimed_by = #{instanceId}
+            completed_at = NOW(),
+            last_error   = NULL
+        WHERE checkpoint_date = #{checkpointDate}
+          AND corporate_number = #{corporateNumber}
+          AND claimed_by = #{workerId}
     </update>
 
-    <update id="markFailed">
+    <update id="markJobFailed">
         UPDATE export_job
-        SET status = 'failed'
-        WHERE corporate_number = #{corporateNumber}
-          AND checkpoint_date = #{checkpointDate}
-          AND claimed_by = #{instanceId}
+        SET status     = 'failed',
+            last_error = #{error}
+        WHERE checkpoint_date = #{checkpointDate}
+          AND corporate_number = #{corporateNumber}
+          AND claimed_by = #{workerId}
     </update>
+
 </mapper>

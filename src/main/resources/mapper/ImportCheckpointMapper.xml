@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java.importer.mapper.ImportCheckpointMapper">
+
+    <select id="getEntryCount" resultType="int">
+        SELECT COUNT(*)
+        FROM import_checkpoint
+        WHERE zip_entry_name = #{entryName}
+          AND date_completed = #{date}
+    </select>
+
+    <insert id="setCheckpoint">
+        INSERT INTO import_checkpoint (date_completed, zip_entry_name)
+        VALUES (#{date}, #{entryName})
+        ON CONFLICT DO NOTHING
+    </insert>
+
+</mapper>
